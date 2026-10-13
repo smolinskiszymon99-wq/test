@@ -45,6 +45,7 @@ Kod wyjścia: `0` – znaleziono terminy, `1` – brak terminów, `2` – błąd
 | `--ntfy TEMAT` | Powiadomienie push przez [ntfy.sh](https://ntfy.sh). Zainstaluj aplikację ntfy na telefonie, zasubskrybuj wymyślony (trudny do zgadnięcia) temat, np. `lancut-auto-x7k2p`, i podaj go tutaj. Bez zakładania konta. |
 | `--telegram-token TOKEN --telegram-chat ID` | Wiadomość z bota Telegram ([jak założyć bota](https://core.telegram.org/bots#botfather); `chat_id` sprawdzisz np. przez bota `@userinfobot`). |
 | `--webhook URL` | `POST` z JSON-em `{"title", "message", "url"}` na dowolny adres (Discord/Slack przez pośrednika, Home Assistant itd.). |
+| `--termux` | Powiadomienie systemowe Androida (dźwięk + wibracja, kliknięcie otwiera stronę), gdy skrypt działa w Termuxie – patrz niżej. |
 
 Przykład – telefon dostaje push, gdy pojawi się termin przed 24.10:
 
@@ -55,6 +56,48 @@ python3 szukaj_terminu.py --watch --przed 2026-10-24 --ntfy lancut-auto-x7k2p
 W trybie `--watch` powiadomienie przychodzi przy starcie (jeśli coś jest wolne)
 oraz za każdym razem, gdy pojawi się godzina, której wcześniej nie było. Terminal
 dodatkowo wydaje dźwięk (`\a`).
+
+## Android
+
+### Wariant 1 (polecany): tylko odbieraj powiadomienia
+
+Nie uruchamiaj niczego na telefonie – pozwól, by skrypt chodził na GitHub Actions
+(sekcja niżej), a na telefonie zainstaluj aplikację **ntfy** i zasubskrybuj swój temat.
+Zero zużycia baterii, działa też gdy telefon jest offline przez chwilę.
+
+### Wariant 2: uruchom skrypt na telefonie (Termux)
+
+1. Zainstaluj **Termux** z [F-Droid](https://f-droid.org/packages/com.termux/)
+   (wersja ze Sklepu Play jest przestarzała i nie działa) oraz **Termux:API**
+   z [F-Droid](https://f-droid.org/packages/com.termux.api/) – do powiadomień.
+2. Otwórz Termux i wklej (długie przytrzymanie → Paste):
+
+   ```bash
+   pkg update -y && pkg install -y python termux-api
+   curl -LO https://raw.githubusercontent.com/smolinskiszymon99-wq/test/main/terminy-komunikacja/szukaj_terminu.py
+   termux-wake-lock
+   python szukaj_terminu.py --watch --przed 2026-10-24 --termux
+   ```
+
+   `termux-wake-lock` nie pozwala systemowi uśpić Termuxa. Datę w `--przed` dopasuj
+   do siebie (albo pomiń, jeśli chcesz wiedzieć o każdym nowym terminie).
+3. Android → **Ustawienia → Aplikacje → Termux → Bateria → Bez ograniczeń**
+   (nazwy różnią się między producentami; na Xiaomi/Huawei dodatkowo „Autostart” i
+   zablokuj Termux w liście ostatnich aplikacji). Bez tego system ubije skrypt po
+   kilku minutach z wygaszonym ekranem.
+4. Zostaw Termux w tle. Gdy pojawi się termin, dostaniesz powiadomienie z dźwiękiem
+   i wibracją; kliknięcie otwiera stronę rezerwacji. Skrypt zatrzymasz wracając do
+   Termuxa i wciskając **Ctrl+C** (klawisz `CTRL` na pasku nad klawiaturą, potem `c`).
+
+Przydatne:
+
+- Sprawdzić, czy działa: `termux-notification --title test --content działa`.
+- Po restarcie telefonu skrypt trzeba uruchomić ponownie (strzałka w górę w Termuxie
+  przywołuje ostatnie polecenie). Automatyczny start po restarcie daje dodatek
+  **Termux:Boot** z F-Droid – skrypt startowy umieszcza się w `~/.termux/boot/`.
+- Zużycie danych: jedno sprawdzenie to ok. 16 zapytań, ~190 kB (z kompresją gzip).
+  Przy pętli co minutę to ok. 270 MB dziennie – na danych mobilnych ustaw dłuższy
+  odstęp (`--interwal 300` → ok. 55 MB dziennie) albo zostań na Wi-Fi.
 
 ## Automatycznie na GitHub Actions (bez włączonego komputera)
 

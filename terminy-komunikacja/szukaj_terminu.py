@@ -25,11 +25,14 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import email.header
+import gzip
 import html
 import http.cookiejar
 import json
 import random
 import re
+import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -75,6 +78,15 @@ class LivewireClient:
         if self.verbose:
             print(f"    [debug] {msg}", file=sys.stderr)
 
+    def _fetch(self, req: urllib.request.Request) -> str:
+        """Wykonuje żądanie z kompresją gzip (odpowiedzi Livewire to duże HTML-e)."""
+        req.add_header("Accept-Encoding", "gzip")
+        with self.opener.open(req, timeout=TIMEOUT) as resp:
+            raw = resp.read()
+            if resp.headers.get("Content-Encoding", "").lower() == "gzip":
+                raw = gzip.decompress(raw)
+        return raw.decode("utf-8", "replace")
+
     @property
     def data(self) -> dict:
         return json.loads(self.snapshot)["data"]
@@ -85,8 +97,7 @@ class LivewireClient:
             self.base_url + "/",
             headers={"User-Agent": USER_AGENT, "Accept-Language": "pl"},
         )
-        with self.opener.open(req, timeout=TIMEOUT) as resp:
-            page = resp.read().decode("utf-8", "replace")
+        page = self._fetch(req)
 
         m = re.search(r'name="csrf-token"\s+content="([^"]+)"', page)
         if not m:
@@ -141,8 +152,7 @@ class LivewireClient:
             },
         )
         try:
-            with self.opener.open(req, timeout=TIMEOUT) as resp:
-                payload = json.loads(resp.read().decode("utf-8", "replace"))
+            payload = json.loads(self._fetch(req))
         except urllib.error.HTTPError as e:
             raise SiteError(f"{method}: HTTP {e.code} ({e.reason})") from e
 
@@ -278,6 +288,28 @@ def notify(args: argparse.Namespace, title: str, message: str) -> None:
         except Exception as e:  # noqa: BLE001
             errors.append(f"webhook: {e}")
 
+    if args.termux:
+        # Powiadomienie systemowe Androida przez Termux:API (pakiet termux-api).
+        try:
+            subprocess.run(
+                [
+                    "termux-notification",
+                    "--id", "termin-komunikacja",
+                    "--title", title,
+                    "--content", message,
+                    "--priority", "max",
+                    "--sound",
+                    "--vibrate", "500,300,500",
+                    "--action", f"termux-open-url {BASE_URL}",
+                ],
+                check=True,
+                timeout=15,
+            )
+        except FileNotFoundError:
+            errors.append("termux: brak polecenia termux-notification (zainstaluj: pkg install termux-api + aplikacja Termux:API)")
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"termux: {e}")
+
     for err in errors:
         print(f"  ! Błąd powiadomienia - {err}", file=sys.stderr)
 
@@ -344,10 +376,20 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--telegram-token", metavar="TOKEN", help="token bota Telegram")
     p.add_argument("--telegram-chat", metavar="CHAT_ID", help="chat_id odbiorcy w Telegramie")
     p.add_argument("--webhook", metavar="URL", help="dowolny webhook (POST z JSON-em)")
+    p.add_argument(
+        "--termux",
+        action="store_true",
+        help="powiadomienie systemowe Androida (skrypt uruchomiony w Termux z pakietem termux-api)",
+    )
     p.add_argument("--json", action="store_true", help="wypisz wynik jako JSON (do skryptów)")
     p.add_argument("--verbose", action="store_true", help="pokazuj szczegóły komunikacji ze stroną")
     args = p.parse_args(argv)
     args.interwal = max(60, args.interwal)
+    if args.termux and not shutil.which("termux-notification"):
+        p.error(
+            "--termux wymaga polecenia termux-notification. W Termuxie wykonaj: "
+            "pkg install termux-api  oraz zainstaluj aplikację Termux:API (F-Droid)."
+        )
     return args
 
 
