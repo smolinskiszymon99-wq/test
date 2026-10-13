@@ -1,10 +1,19 @@
 name: Szukaj terminu – komunikacja Łańcut
 
+# Cron na GitHubie ma minimum 5 minut i bywa opóźniony, dlatego jedno zadanie
+# samo sprawdza stronę co ~60 s przez prawie 6 godzin (limit pojedynczego joba),
+# a harmonogram tylko uruchamia kolejne zadanie, gdy poprzednie się kończy.
 on:
   schedule:
-    # co 30 minut w godzinach, gdy system rezerwacji bywa aktualizowany (czas UTC)
-    - cron: "*/30 4-20 * * *"
+    - cron: "0 */6 * * *"
   workflow_dispatch:
+    inputs:
+      czas:
+        description: "Ile minut ma działać pętla (max 350)"
+        default: "350"
+      przed:
+        description: "Tylko terminy przed datą RRRR-MM-DD (puste = wszystkie)"
+        default: ""
 
 permissions:
   contents: read
@@ -14,9 +23,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sprawdz:
+  obserwuj:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 358
     steps:
       - uses: actions/checkout@v4
 
@@ -24,18 +33,18 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Sprawdź wolne terminy
+      - name: Sprawdzaj wolne terminy co minutę
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          TERMIN_PRZED: ${{ vars.TERMIN_PRZED }}
+          TERMIN_PRZED: ${{ github.event.inputs.przed || vars.TERMIN_PRZED }}
           USLUGA: ${{ vars.USLUGA }}
+          CZAS: ${{ github.event.inputs.czas || '350' }}
         run: |
-          args=(--usluga "${USLUGA:-1}")
+          args=(--watch --interwal 60 --czas "$CZAS" --usluga "${USLUGA:-1}")
           if [ -n "$TERMIN_PRZED" ]; then args+=(--przed "$TERMIN_PRZED"); fi
           if [ -n "$NTFY_TOPIC" ]; then
             args+=(--ntfy "$NTFY_TOPIC")
           else
-            echo "::warning::Brak sekretu NTFY_TOPIC - wynik tylko w logu, bez powiadomienia."
+            echo "::warning::Brak sekretu NTFY_TOPIC - wyniki tylko w logu, bez powiadomień."
           fi
-          # kod 1 = brak terminów, to nie błąd
-          python3 terminy-komunikacja/szukaj_terminu.py "${args[@]}" || [ $? -eq 1 ]
+          python3 -u terminy-komunikacja/szukaj_terminu.py "${args[@]}"

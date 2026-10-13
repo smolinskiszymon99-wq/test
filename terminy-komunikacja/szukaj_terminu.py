@@ -330,9 +330,15 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument(
         "--interwal",
         type=int,
-        default=180,
+        default=60,
         metavar="SEK",
-        help="odstęp między sprawdzeniami w trybie --watch (domyślnie 180 s, minimum 60)",
+        help="odstęp między sprawdzeniami w trybie --watch (domyślnie 60 s, minimum 60)",
+    )
+    p.add_argument(
+        "--czas",
+        type=int,
+        metavar="MIN",
+        help="zakończ tryb --watch po tylu minutach (domyślnie działa do Ctrl+C)",
     )
     p.add_argument("--ntfy", metavar="TEMAT_LUB_URL", help="powiadomienie przez ntfy.sh (aplikacja na telefon)")
     p.add_argument("--telegram-token", metavar="TOKEN", help="token bota Telegram")
@@ -380,8 +386,10 @@ def main(argv=None) -> int:
     print(
         f"Obserwuję terminy: {service_name}"
         + (f", przed {args.przed}" if args.przed else "")
-        + f". Sprawdzanie co ~{args.interwal} s. Ctrl+C aby zakończyć."
+        + f". Sprawdzanie co ~{args.interwal} s."
+        + (f" Koniec po {args.czas} min." if args.czas else " Ctrl+C aby zakończyć.")
     )
+    deadline = time.monotonic() + args.czas * 60 if args.czas else None
     known: set[tuple[dt.date, str]] = set()
     first_run = True
     while True:
@@ -416,7 +424,11 @@ def main(argv=None) -> int:
             first_run = False
 
         # Losowy rozrzut, żeby nie obciążać serwera w stałym rytmie.
-        time.sleep(args.interwal + random.uniform(0, args.interwal * 0.2))
+        pause = args.interwal + random.uniform(0, args.interwal * 0.2)
+        if deadline is not None and time.monotonic() + pause >= deadline:
+            print(f"[{stamp}] Minął zadany czas ({args.czas} min) - kończę.")
+            return 0
+        time.sleep(pause)
 
 
 if __name__ == "__main__":
