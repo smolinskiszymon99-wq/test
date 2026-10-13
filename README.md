@@ -97,4 +97,11 @@ style.css                   – wygląd
 app.js                      – logika (Drive API, galeria, podgląd)
 config.js                   – Twoja konfiguracja
 .github/workflows/deploy.yml – publikacja na GitHub Pages
+terminy-komunikacja/        – osobne narzędzie: szukanie terminu w Wydziale Komunikacji w Łańcucie
 ```
+
+## Inne narzędzia
+
+- [`terminy-komunikacja/`](terminy-komunikacja/README.md) – skrypt sprawdzający wolne terminy
+  rejestracji pojazdu na [komunikacja.powiatlancut.pl](https://komunikacja.powiatlancut.pl/)
+  z powiadomieniami na telefon.
