@@ -1,0 +1,41 @@
+name: Szukaj terminu – komunikacja Łańcut
+
+on:
+  schedule:
+    # co 30 minut w godzinach, gdy system rezerwacji bywa aktualizowany (czas UTC)
+    - cron: "*/30 4-20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terminy-komunikacja
+  cancel-in-progress: false
+
+jobs:
+  sprawdz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sprawdź wolne terminy
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TERMIN_PRZED: ${{ vars.TERMIN_PRZED }}
+          USLUGA: ${{ vars.USLUGA }}
+        run: |
+          args=(--usluga "${USLUGA:-1}")
+          if [ -n "$TERMIN_PRZED" ]; then args+=(--przed "$TERMIN_PRZED"); fi
+          if [ -n "$NTFY_TOPIC" ]; then
+            args+=(--ntfy "$NTFY_TOPIC")
+          else
+            echo "::warning::Brak sekretu NTFY_TOPIC - wynik tylko w logu, bez powiadomienia."
+          fi
+          # kod 1 = brak terminów, to nie błąd
+          python3 terminy-komunikacja/szukaj_terminu.py "${args[@]}" || [ $? -eq 1 ]
