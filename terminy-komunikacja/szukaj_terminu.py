@@ -12,7 +12,7 @@ Wymaga tylko Pythona 3.8+ (bez dodatkowych bibliotek).
 
 Przykłady:
     python3 szukaj_terminu.py                     # jednorazowe sprawdzenie
-    python3 szukaj_terminu.py --watch             # sprawdzaj co 3 minuty, powiadom o nowych terminach
+    python3 szukaj_terminu.py --watch             # sprawdzaj co minutę, powiadom o nowych terminach
     python3 szukaj_terminu.py --watch --przed 2026-10-24 --ntfy moj-tajny-temat
     python3 szukaj_terminu.py --usluga 2          # prawa jazdy zamiast rejestracji pojazdów
 
