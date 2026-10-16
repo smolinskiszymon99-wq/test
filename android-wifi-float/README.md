@@ -7,35 +7,29 @@ Aplikacja na tablet/telefon (Android 8+), która:
 3. **włącza / wyłącza Wi‑Fi** po tapnięciu,
 4. **uruchamia się sama po restarcie** tabletu (jeśli była włączona).
 
+## Jak to działa z Wi‑Fi (jak MacroDroid Helper)
+
+Od Androida 10 Google blokuje `WifiManager.setWifiEnabled()` **tylko** dla aplikacji
+z `targetSdk ≥ 29`. MacroDroid Helper omija to, budując APK ze starym SDK.
+
+Ta aplikacja robi to samo: `targetSdk = 28`, więc na realme / ColorOS przełączanie
+Wi‑Fi działa **bez** `pm grant WRITE_SECURE_SETTINGS` (które na realme i tak pada
+z `GRANT_RUNTIME_PERMISSIONS`).
+
 ## Instalacja
 
-1. Zbuduj APK albo pobierz artefakt z Actions (workflow `build-wifi-float.yml`).
-2. Zainstaluj na tablecie (`adb install -r WifiFloat.apk` albo otwórz plik).
-3. Otwórz **Wi‑Fi Float** → nadaj uprawnienie **„Wyświetlanie nad innymi aplikacjami”**.
-4. (Zalecane) wyłącz optymalizację baterii dla aplikacji.
+1. Pobierz `WifiFloat.apk` z [Releases](../../releases) albo z artefaktu Actions.
+2. Zainstaluj (`adb install -r WifiFloat.apk` albo otwórz plik na tablecie).
+3. Otwórz **Wi‑Fi Float** → nadaj **„Wyświetlanie nad innymi aplikacjami”**.
+4. (Zalecane) wyłącz optymalizację baterii.
 5. Dotknij **Włącz pływający przycisk**.
 
-## Uprawnienia przez ADB (Android 10+)
-
-Od Androida 10 zwykłe aplikacje **nie mogą** swobodnie przełączać Wi‑Fi.
-Aplikacja próbuje kilku sposobów; najskuteczniejszy bez roota to nadanie
-`WRITE_SECURE_SETTINGS` przez ADB:
+### Opcjonalne ADB
 
 ```bash
-# Overlay (zamiast klikania w ustawieniach)
 adb shell appops set pl.tablet.wififloat SYSTEM_ALERT_WINDOW allow
-
-# Przełączanie Wi-Fi na Android 10+ (działa na wielu tabletach / ROM-ach)
-adb shell pm grant pl.tablet.wififloat android.permission.WRITE_SECURE_SETTINGS
-
-# Żeby system nie uśpił usługi po restarcie
 adb shell dumpsys deviceidle whitelist +pl.tablet.wififloat
 ```
-
-Jeśli mimo to system zablokuje przełączenie, przycisk otworzy **panel Wi‑Fi**
-systemu – jeden dodatkowy tap i Wi‑Fi się zmienia.
-
-Na Androidzie 8–9 przełączanie działa bez ADB (`CHANGE_WIFI_STATE`).
 
 ## Budowanie
 
@@ -47,16 +41,15 @@ cd android-wifi-float
 # wynik: app/build/outputs/apk/release/app-release.apk
 ```
 
-Albo otwórz katalog `android-wifi-float/` w Android Studio.
-
-## Jak działa
+## Jak działa (kod)
 
 | Plik | Rola |
 |------|------|
-| `FloatingWifiService` | Usługa pierwszoplanowa + overlay `TYPE_APPLICATION_OVERLAY` |
-| `WifiController` | Przełączanie Wi‑Fi (WifiManager → Secure Settings → `svc wifi` → panel) |
-| `BootReceiver` | Autostart po `BOOT_COMPLETED` / aktualizacji aplikacji |
-| `MainActivity` | Włącz/wyłącz, uprawnienia, komendy ADB |
+| `FloatingWifiService` | Usługa pierwszoplanowa + overlay |
+| `WifiController` | `WifiManager.setWifiEnabled` (dzięki targetSdk 28) |
+| `BootReceiver` | Autostart po restarcie / aktualizacji |
+| `MainActivity` | Włącz/wyłącz, uprawnienia |
 
-Przycisk zapamiętuje pozycję na ekranie. Zatrzymanie: z aplikacji, z powiadomienia
-albo przyciskiem **Wyłącz pływający przycisk**.
+**Uwaga:** na części ROM-ów Android 14+ system może pokazać dodatkowe potwierdzenie
+przy zmianie Wi‑Fi (ograniczenie ColorOS). Na większości tabletów realme z działającym
+MacroDroid Helper ten sam mechanizm powinien przejść bez pytania.

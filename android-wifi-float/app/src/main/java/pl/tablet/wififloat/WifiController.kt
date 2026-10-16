@@ -10,12 +10,11 @@ import android.util.Log
 /**
  * Przełącza Wi-Fi.
  *
- * - Android 8–9: [WifiManager.setWifiEnabled] działa normalnie.
- * - Android 10+: system blokuje to dla zwykłych aplikacji. Próbujemy kolejno:
- *   1) WifiManager (na niektórych tabletach / ROM-ach nadal działa),
- *   2) Settings.Global + WRITE_SECURE_SETTINGS (nadane przez ADB),
- *   3) `svc wifi` (działa na root / niektórych firmware),
- *   4) panel systemowy Wi-Fi (jeden dodatkowy tap użytkownika).
+ * Ten sam trick co MacroDroid Helper: aplikacja ma targetSdk 28, więc
+ * [WifiManager.setWifiEnabled] nadal działa na Android 10+ (blokada dotyczy
+ * tylko aplikacji z targetSdk ≥ 29).
+ *
+ * Fallbacki: svc wifi (root) oraz panel systemowy.
  */
 class WifiController(private val context: Context) {
     private val wifi = context.applicationContext
@@ -23,16 +22,12 @@ class WifiController(private val context: Context) {
 
     fun isEnabled(): Boolean = wifi.isWifiEnabled
 
-    /**
-     * @return wynik operacji do pokazania użytkownikowi
-     */
     fun toggle(): ToggleResult {
         val wantOn = !isEnabled()
         return setEnabled(wantOn)
     }
 
     fun setEnabled(enabled: Boolean): ToggleResult {
-        // 1) Klasyczne API (Android ≤ 9 i niektóre tablety)
         try {
             @Suppress("DEPRECATION")
             if (wifi.setWifiEnabled(enabled)) {
@@ -42,52 +37,25 @@ class WifiController(private val context: Context) {
             Log.w(TAG, "WifiManager zablokowany", e)
         }
 
-        // 2) WRITE_SECURE_SETTINGS z ADB
-        if (trySecureSettings(enabled)) {
-            return ToggleResult(ok = true, method = "WRITE_SECURE_SETTINGS", enabled = enabled)
-        }
-
-        // 3) svc wifi (root / shell)
         if (trySvcWifi(enabled)) {
             return ToggleResult(ok = true, method = "svc wifi", enabled = enabled)
         }
 
-        // 4) Panel systemowy – użytkownik kończy przełączenie jednym tapnięciem
         openWifiPanel()
         return ToggleResult(
             ok = false,
             method = "Settings.Panel",
             enabled = isEnabled(),
-            message = "System nie pozwala aplikacji przełączyć Wi-Fi. " +
-                "Otworzono panel – dotknij przełącznika. " +
-                "Albo nadaj uprawnienie ADB (patrz README)."
+            message = "Nie udało się przełączyć Wi-Fi bezpośrednio. " +
+                "Otworzono panel – dotknij przełącznika."
         )
-    }
-
-    private fun trySecureSettings(enabled: Boolean): Boolean {
-        return try {
-            val on = if (enabled) 1 else 0
-            Settings.Global.putInt(context.contentResolver, "wifi_on", on)
-            // Wymuś ponowne odczytanie – na części ROM-ów to wystarczy.
-            @Suppress("DEPRECATION")
-            wifi.setWifiEnabled(enabled)
-            // Krótka weryfikacja – nie zawsze od razu się zmienia
-            true
-        } catch (e: SecurityException) {
-            Log.w(TAG, "Brak WRITE_SECURE_SETTINGS", e)
-            false
-        } catch (e: Exception) {
-            Log.w(TAG, "Settings.Global wifi_on nie zadziałał", e)
-            false
-        }
     }
 
     private fun trySvcWifi(enabled: Boolean): Boolean {
         val arg = if (enabled) "enable" else "disable"
         return try {
             val process = Runtime.getRuntime().exec(arrayOf("svc", "wifi", arg))
-            val code = process.waitFor()
-            code == 0
+            process.waitFor() == 0
         } catch (e: Exception) {
             Log.w(TAG, "svc wifi nie dostępne", e)
             false
