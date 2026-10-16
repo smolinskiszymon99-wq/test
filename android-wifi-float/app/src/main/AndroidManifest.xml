@@ -5,20 +5,14 @@
     <!-- Overlay (pływający przycisk na wierzchu) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- Wi-Fi -->
+    <!-- Wi-Fi – CHANGE_WIFI_STATE + niski targetSdk (= MacroDroid Helper) -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Nadawane przez ADB (nie przez UI): pozwala próbować przełączać Wi-Fi na Android 10+ -->
-    <uses-permission
-        android:name="android.permission.WRITE_SECURE_SETTINGS"
-        tools:ignore="ProtectedPermissions" />
 
     <!-- Autostart + usługa w tle -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
@@ -41,12 +35,7 @@
 
         <service
             android:name=".FloatingWifiService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Pływający przycisk Wi-Fi zawsze na wierzchu ekranu" />
-        </service>
+            android:exported="false" />
 
         <receiver
             android:name=".BootReceiver"
