@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Terminy Komunikacja Łańcut</string>
+    <string name="subtitle">Szuka wolnych terminów wizyt w Wydziale Komunikacji Starostwa Powiatowego w Łańcucie i powiadamia, gdy się pojawią. Rezerwacji dokonujesz sam na stronie.</string>
+    <string name="label_service">Usługa</string>
+    <string name="label_interval">Sprawdzaj co (sekundy, min. 60)</string>
+    <string name="clear_date">Wyczyść datę</string>
+    <string name="start">Start</string>
+    <string name="stop">Zatrzymaj</string>
+    <string name="check_now">Sprawdź teraz</string>
+    <string name="open_site">Otwórz stronę</string>
+    <string name="battery_hint">Wyłącz optymalizację baterii dla tej aplikacji (inaczej system zatrzyma sprawdzanie)</string>
+    <string name="footer">Aplikacja odpytuje stronę komunikacja.powiatlancut.pl w tle. Jedno sprawdzenie to ok. 0,2 MB danych. Po zarezerwowaniu wizyty zatrzymaj obserwację.</string>
+</resources>
