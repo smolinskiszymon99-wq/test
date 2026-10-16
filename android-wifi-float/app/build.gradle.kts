@@ -23,8 +23,8 @@ android {
         // działało na Android 10+ (Google blokuje to dopiero od target 29).
         // Aplikacja jest do sideloadu / ADB, nie na Play Store.
         targetSdk = 28
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     signingConfigs {

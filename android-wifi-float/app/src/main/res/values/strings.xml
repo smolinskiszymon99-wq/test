@@ -20,4 +20,14 @@
     <string name="notif_title">Wi‑Fi Float aktywny</string>
     <string name="adb_hint_toast">Komendy ADB są na ekranie głównym i w README.</string>
     <string name="adb_commands">Opcjonalne ADB (overlay / bateria):\n\nadb shell appops set pl.tablet.wififloat SYSTEM_ALERT_WINDOW allow\n\nadb shell dumpsys deviceidle whitelist +pl.tablet.wififloat\n\nWi‑Fi przełącza się bez pm grant (jak MacroDroid Helper).</string>
+    <string name="watchdog_section">Auto-restart Wi‑Fi (ping)</string>
+    <string name="watchdog_help">Gdy ping na adres nie przejdzie dłużej niż 10 s → Wi‑Fi OFF na 5 s → z powrotem ON. Działa tylko gdy pływający przycisk jest włączony.</string>
+    <string name="watchdog_enable">Włącz watchdog ping</string>
+    <string name="ping_host_hint">Adres do pingu (np. 8.8.8.8)</string>
+    <string name="save_watchdog">Zapisz adres ping</string>
+    <string name="watchdog_saved">Zapisano ustawienia watchdog</string>
+    <string name="ping_host_empty">Podaj adres do pingu</string>
+    <string name="watchdog_off">Watchdog: wyłączony</string>
+    <string name="watchdog_status">Watchdog: ON → ping %1$s, fail %2$ds, off %3$ds</string>
+    <string name="watchdog_on_short">Watchdog: %1$s</string>
 </resources>

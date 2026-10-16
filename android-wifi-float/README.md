@@ -16,6 +16,18 @@ Ta aplikacja robi to samo: `targetSdk = 28`, więc na realme / ColorOS przełąc
 Wi‑Fi działa **bez** `pm grant WRITE_SECURE_SETTINGS` (które na realme i tak pada
 z `GRANT_RUNTIME_PERMISSIONS`).
 
+## Auto-restart Wi‑Fi (watchdog)
+
+Opcja w aplikacji: **Włącz watchdog ping** + adres (domyślnie `8.8.8.8`).
+
+- ping co ~2 s
+- brak odpowiedzi **> 10 s** → Wi‑Fi **OFF**
+- po **5 s** → Wi‑Fi **ON**
+- potem ~45 s cooldown (czas na reconnect), żeby nie zapętlać restartów
+
+Działa tylko gdy pływający przycisk / usługa jest uruchomiona. Status widać
+w powiadomieniu.
+
 ## Instalacja
 
 1. Pobierz `WifiFloat.apk` z [Releases](../../releases) albo z artefaktu Actions.
