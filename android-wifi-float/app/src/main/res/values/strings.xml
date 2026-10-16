@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wi‑Fi Float</string>
+    <string name="intro">Pływający przycisk Wi‑Fi zawsze na wierzchu. Po restarcie tabletu włącza się sam, jeśli był uruchomiony.</string>
+    <string name="start_float">Włącz pływający przycisk</string>
+    <string name="stop_float">Wyłącz pływający przycisk</string>
+    <string name="stop">Zatrzymaj</string>
+    <string name="grant_overlay">Uprawnienie: rysowanie na innych aplikacjach</string>
+    <string name="grant_battery">Wyłącz optymalizację baterii</string>
+    <string name="adb_help">Pokaż komendy ADB</string>
+    <string name="need_overlay">Najpierw zezwól na wyświetlanie nad innymi aplikacjami.</string>
+    <string name="status_running">Status: przycisk włączony</string>
+    <string name="status_stopped">Status: przycisk wyłączony</string>
+    <string name="overlay_granted">Overlay: OK</string>
+    <string name="overlay_missing">Overlay: BRAK – nadaj w ustawieniach lub ADB</string>
+    <string name="battery_ok">Optymalizacja baterii już wyłączona.</string>
+    <string name="wifi_on">Wi‑Fi włączone</string>
+    <string name="wifi_off">Wi‑Fi wyłączone</string>
+    <string name="notif_channel">Pływający przycisk</string>
+    <string name="notif_title">Wi‑Fi Float aktywny</string>
+    <string name="adb_hint_toast">Komendy ADB są na ekranie głównym i w README.</string>
+    <string name="adb_commands">ADB (opcjonalnie, Android 10+):\n\nadb shell pm grant pl.tablet.wififloat android.permission.WRITE_SECURE_SETTINGS\n\nadb shell appops set pl.tablet.wififloat SYSTEM_ALERT_WINDOW allow\n\nadb shell dumpsys deviceidle whitelist +pl.tablet.wififloat</string>
+</resources>
