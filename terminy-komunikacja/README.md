@@ -59,7 +59,13 @@ dodatkowo wydaje dźwięk (`\a`).
 
 ## Android
 
-### Wariant 1 (polecany): tylko odbieraj powiadomienia
+### Wariant 0: gotowa aplikacja
+
+W katalogu [`android/`](../android/README.md) jest natywna aplikacja Android, która robi
+to samo co ten skrypt w trybie `--watch`, bez instalowania Termuxa. Plik APK do pobrania
+w zakładce **Releases** repozytorium.
+
+### Wariant 1: tylko odbieraj powiadomienia
 
 Nie uruchamiaj niczego na telefonie – pozwól, by skrypt chodził na GitHub Actions
 (sekcja niżej), a na telefonie zainstaluj aplikację **ntfy** i zasubskrybuj swój temat.

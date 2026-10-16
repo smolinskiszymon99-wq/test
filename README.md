@@ -97,7 +97,8 @@ style.css                   – wygląd
 app.js                      – logika (Drive API, galeria, podgląd)
 config.js                   – Twoja konfiguracja
 .github/workflows/deploy.yml – publikacja na GitHub Pages
-terminy-komunikacja/        – osobne narzędzie: szukanie terminu w Wydziale Komunikacji w Łańcucie
+terminy-komunikacja/        – osobne narzędzie: skrypt szukający terminu w Wydziale Komunikacji w Łańcucie
+android/                    – to samo jako aplikacja na Androida (APK budowany przez GitHub Actions)
 ```
 
 ## Inne narzędzia
@@ -105,3 +106,5 @@ terminy-komunikacja/        – osobne narzędzie: szukanie terminu w Wydziale K
 - [`terminy-komunikacja/`](terminy-komunikacja/README.md) – skrypt sprawdzający wolne terminy
   rejestracji pojazdu na [komunikacja.powiatlancut.pl](https://komunikacja.powiatlancut.pl/)
   z powiadomieniami na telefon.
+- [`android/`](android/README.md) – aplikacja Android, która robi to samo w tle na telefonie
+  i powiadamia dźwiękiem o nowym terminie. Gotowy plik APK w zakładce **Releases**.
