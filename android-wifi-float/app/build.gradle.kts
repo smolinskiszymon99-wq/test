@@ -19,9 +19,12 @@ android {
     defaultConfig {
         applicationId = "pl.tablet.wififloat"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Jak MacroDroid Helper: targetSdk < 29, żeby WifiManager.setWifiEnabled()
+        // działało na Android 10+ (Google blokuje to dopiero od target 29).
+        // Aplikacja jest do sideloadu / ADB, nie na Play Store.
+        targetSdk = 28
+        versionCode = 3
+        versionName = "1.2"
     }
 
     signingConfigs {
@@ -55,6 +58,12 @@ android {
     }
     buildFeatures {
         viewBinding = true
+    }
+
+    // Świadomie targetSdk 28 (jak MacroDroid Helper) – nie publikujemy na Play.
+    lint {
+        disable += "ExpiredTargetSdkVersion"
+        checkReleaseBuilds = false
     }
 }
 

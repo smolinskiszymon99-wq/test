@@ -27,11 +27,17 @@ jobs:
 
       # Opcjonalny własny klucz podpisu (sekrety KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD).
       # Bez niego APK jest podpisany kluczem debug i każda aktualizacja wymaga odinstalowania poprzedniej wersji.
+      # Sekret KEYSTORE_BASE64 nie może być w warunku if (GitHub odrzuca cały workflow).
+      # Bez sekretu APK jest podpisany kluczem debug.
       - name: Przygotuj klucz podpisu
-        if: ${{ github.event_name != 'pull_request' && secrets.KEYSTORE_BASE64 != '' }}
+        if: ${{ github.event_name != 'pull_request' }}
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "Brak sekretu KEYSTORE_BASE64 - APK zostanie podpisany kluczem debug."
+            exit 0
+          fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
