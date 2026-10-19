@@ -14,6 +14,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.textfield.TextInputEditText
 
 class MainActivity : AppCompatActivity() {
     private lateinit var prefs: Prefs
@@ -21,6 +23,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnToggle: Button
     private lateinit var btnOverlay: Button
     private lateinit var btnBattery: Button
+    private lateinit var switchWatchdog: SwitchMaterial
+    private lateinit var editPingHost: TextInputEditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,13 +35,22 @@ class MainActivity : AppCompatActivity() {
         btnToggle = findViewById(R.id.btnToggle)
         btnOverlay = findViewById(R.id.btnOverlay)
         btnBattery = findViewById(R.id.btnBattery)
+        switchWatchdog = findViewById(R.id.switchWatchdog)
+        editPingHost = findViewById(R.id.editPingHost)
         val btnAdb = findViewById<Button>(R.id.btnAdbHelp)
+        val btnSaveWatchdog = findViewById<Button>(R.id.btnSaveWatchdog)
 
         btnToggle.setOnClickListener { toggleFloat() }
         btnOverlay.setOnClickListener { openOverlaySettings() }
         btnBattery.setOnClickListener { requestBatteryExemption() }
         btnAdb.setOnClickListener {
             Toast.makeText(this, R.string.adb_hint_toast, Toast.LENGTH_LONG).show()
+        }
+        btnSaveWatchdog.setOnClickListener { saveWatchdog() }
+        switchWatchdog.setOnCheckedChangeListener { _, checked ->
+            prefs.watchdogEnabled = checked
+            if (prefs.enabled) FloatingWifiService.reloadWatchdog(this)
+            refreshUi()
         }
 
         maybeRequestNotifications()
@@ -47,10 +60,22 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshUi()
-        // Jeśli użytkownik właśnie włączył overlay i przycisk był oczekiwany – wystartuj
         if (prefs.enabled && SettingsCompat.canDrawOverlays(this)) {
             FloatingWifiService.start(this)
         }
+    }
+
+    private fun saveWatchdog() {
+        val host = editPingHost.text?.toString()?.trim().orEmpty()
+        if (host.isEmpty()) {
+            Toast.makeText(this, R.string.ping_host_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+        prefs.pingHost = host
+        prefs.watchdogEnabled = switchWatchdog.isChecked
+        if (prefs.enabled) FloatingWifiService.reloadWatchdog(this)
+        Toast.makeText(this, R.string.watchdog_saved, Toast.LENGTH_SHORT).show()
+        refreshUi()
     }
 
     private fun toggleFloat() {
@@ -75,6 +100,10 @@ class MainActivity : AppCompatActivity() {
     private fun refreshUi() {
         val on = prefs.enabled
         btnToggle.text = getString(if (on) R.string.stop_float else R.string.start_float)
+        switchWatchdog.isChecked = prefs.watchdogEnabled
+        if (editPingHost.text.isNullOrEmpty()) {
+            editPingHost.setText(prefs.pingHost)
+        }
         val overlayOk = SettingsCompat.canDrawOverlays(this)
         status.text = buildString {
             append(if (on) getString(R.string.status_running) else getString(R.string.status_stopped))
@@ -83,6 +112,19 @@ class MainActivity : AppCompatActivity() {
                 if (overlayOk) getString(R.string.overlay_granted)
                 else getString(R.string.overlay_missing)
             )
+            append("\n")
+            if (prefs.watchdogEnabled) {
+                append(
+                    getString(
+                        R.string.watchdog_status,
+                        prefs.pingHost,
+                        Prefs.FAIL_MS / 1000,
+                        Prefs.OFF_MS / 1000
+                    )
+                )
+            } else {
+                append(getString(R.string.watchdog_off))
+            }
             append("\n\n")
             append(getString(R.string.adb_commands))
         }

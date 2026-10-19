@@ -33,6 +33,8 @@ class FloatingWifiService : Service() {
     private var button: ImageView? = null
     private var params: WindowManager.LayoutParams? = null
     private val handler = Handler(Looper.getMainLooper())
+    private var watchdog: PingWatchdog? = null
+    @Volatile private var watchdogStatus: String = ""
 
     private val wifiReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -51,6 +53,7 @@ class FloatingWifiService : Service() {
         startForeground(NOTIF_ID, buildNotification())
         showOverlay()
         registerWifiReceiver()
+        setupWatchdog()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -60,13 +63,20 @@ class FloatingWifiService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
+            ACTION_RELOAD_WATCHDOG -> {
+                applyWatchdogState()
+                return START_STICKY
+            }
         }
         prefs.enabled = true
+        applyWatchdogState()
         return START_STICKY
     }
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        watchdog?.shutdown()
+        watchdog = null
         try {
             unregisterReceiver(wifiReceiver)
         } catch (_: Exception) {
@@ -79,6 +89,36 @@ class FloatingWifiService : Service() {
         }
         overlay = null
         super.onDestroy()
+    }
+
+    private fun setupWatchdog() {
+        watchdog = PingWatchdog(
+            prefs = prefs,
+            wifi = wifi,
+            onStatus = { msg ->
+                watchdogStatus = msg
+                val nm = getSystemService(NotificationManager::class.java)
+                nm.notify(NOTIF_ID, buildNotification())
+            },
+            onWifiChanged = {
+                refreshButton()
+                handler.postDelayed({ refreshButton() }, 800)
+                handler.postDelayed({ refreshButton() }, 2500)
+            }
+        )
+        applyWatchdogState()
+    }
+
+    private fun applyWatchdogState() {
+        val wd = watchdog ?: return
+        if (prefs.watchdogEnabled) {
+            wd.reload()
+            wd.start()
+        } else {
+            wd.stop()
+        }
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.notify(NOTIF_ID, buildNotification())
     }
 
     private fun showOverlay() {
@@ -160,7 +200,6 @@ class FloatingWifiService : Service() {
     private fun onButtonClick() {
         val result = wifi.toggle()
         refreshButton()
-        // Po chwili odśwież stan (przełączenie bywa asynchroniczne)
         handler.postDelayed({ refreshButton() }, 800)
         handler.postDelayed({ refreshButton() }, 2000)
 
@@ -214,10 +253,16 @@ class FloatingWifiService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val state = if (wifi.isEnabled()) getString(R.string.wifi_on) else getString(R.string.wifi_off)
+        val extra = when {
+            prefs.watchdogEnabled && watchdogStatus.isNotBlank() -> watchdogStatus
+            prefs.watchdogEnabled -> getString(R.string.watchdog_on_short, prefs.pingHost)
+            else -> state
+        }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_wifi_on)
             .setContentTitle(getString(R.string.notif_title))
-            .setContentText(state)
+            .setContentText(extra)
+            .setStyle(NotificationCompat.BigTextStyle().bigText("$state\n$extra"))
             .setContentIntent(open)
             .addAction(0, getString(R.string.stop), stop)
             .setOngoing(true)
@@ -229,6 +274,7 @@ class FloatingWifiService : Service() {
 
     companion object {
         const val ACTION_STOP = "pl.tablet.wififloat.STOP"
+        const val ACTION_RELOAD_WATCHDOG = "pl.tablet.wififloat.RELOAD_WATCHDOG"
         private const val CHANNEL_ID = "wifi_float"
         private const val NOTIF_ID = 42
 
@@ -246,10 +292,15 @@ class FloatingWifiService : Service() {
                 Intent(context, FloatingWifiService::class.java).setAction(ACTION_STOP)
             )
         }
+
+        fun reloadWatchdog(context: Context) {
+            context.startService(
+                Intent(context, FloatingWifiService::class.java).setAction(ACTION_RELOAD_WATCHDOG)
+            )
+        }
     }
 }
 
-/** Mały helper – unikamy zależności od SettingsCompat z AppCompat do canDrawOverlays. */
 object SettingsCompat {
     fun canDrawOverlays(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
