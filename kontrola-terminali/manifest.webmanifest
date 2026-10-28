@@ -1,0 +1,19 @@
+{
+  "name": "Kontrola terminali",
+  "short_name": "Terminale",
+  "description": "Cotygodniowa kontrola terminali produkcyjnych",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f4f1",
+  "theme_color": "#0d6b4c",
+  "lang": "pl",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

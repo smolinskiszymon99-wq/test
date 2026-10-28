@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d3b2e" />
+  <meta name="description" content="Cotygodniowa kontrola terminali na hali produkcyjnej — offline, GitHub Pages." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Kontrola terminali</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Przejdź do treści</a>
+
+  <header class="sticky-header" id="sticky-header">
+    <div class="header-top">
+      <div class="brand-block">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <p class="brand-name">Kontrola terminali</p>
+          <p class="week-label" id="week-label">Tydzień —</p>
+        </div>
+      </div>
+      <button type="button" class="icon-btn" id="theme-toggle" aria-label="Przełącz motyw">
+        <span class="theme-icon" aria-hidden="true"></span>
+      </button>
+    </div>
+    <div class="progress-bar-wrap" aria-hidden="true">
+      <div class="progress-bar" id="header-progress-bar"></div>
+    </div>
+    <div class="header-stats" id="header-stats">
+      <span id="header-progress-text">0 / 0</span>
+      <span class="dot" aria-hidden="true">·</span>
+      <span id="header-percent">0%</span>
+    </div>
+  </header>
+
+  <main id="main" class="main">
+    <!-- DASHBOARD -->
+    <section class="view" id="view-dashboard" data-view="dashboard" hidden>
+      <h1 class="view-title">Dashboard</h1>
+      <p class="view-lead" id="dash-week-lead">Aktualny tydzień ISO</p>
+
+      <div class="hero-progress" id="dash-hero">
+        <div class="ring" id="dash-ring" role="img" aria-label="Postęp tygodnia">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="ring-bg" cx="60" cy="60" r="52" />
+            <circle class="ring-fg" id="dash-ring-fg" cx="60" cy="60" r="52" />
+          </svg>
+          <div class="ring-label">
+            <strong id="dash-percent">0%</strong>
+            <span id="dash-counts">0 / 0</span>
+          </div>
+        </div>
+        <div class="hero-copy">
+          <p class="hero-kicker">Postęp globalny</p>
+          <p class="hero-text">Zaznaczaj terminale w zakładce Terminale. Nowy tydzień ISO resetuje statusy — historia zostaje w localStorage.</p>
+        </div>
+      </div>
+
+      <h2 class="section-title">Lokalizacje</h2>
+      <div class="loc-tiles" id="dash-tiles"></div>
+    </section>
+
+    <!-- TERMINALE -->
+    <section class="view" id="view-terminals" data-view="terminals" hidden>
+      <h1 class="view-title">Terminale</h1>
+      <div class="toolbar">
+        <label class="search-wrap">
+          <span class="sr-only">Szukaj</span>
+          <input type="search" id="search-input" placeholder="Szukaj numeru lub lokalizacji…" autocomplete="off" />
+        </label>
+        <button type="button" class="btn btn-primary" id="btn-add-open">Dodaj</button>
+      </div>
+      <div class="accordion" id="terminals-accordion"></div>
+      <p class="empty-state" id="terminals-empty" hidden>Brak wyników.</p>
+    </section>
+
+    <!-- NIESPRAWDZONE -->
+    <section class="view" id="view-unchecked" data-view="unchecked" hidden>
+      <h1 class="view-title">Niesprawdzone</h1>
+      <p class="view-lead">Terminale bez odhaczenia w bieżącym tygodniu.</p>
+      <div class="report-actions">
+        <button type="button" class="btn btn-primary" id="btn-copy-report">Kopiuj raport</button>
+      </div>
+      <ul class="plain-list" id="unchecked-list"></ul>
+      <p class="empty-state" id="unchecked-empty" hidden>Wszystkie terminale sprawdzone w tym tygodniu.</p>
+    </section>
+
+    <!-- HISTORIA -->
+    <section class="view" id="view-history" data-view="history" hidden>
+      <h1 class="view-title">Historia</h1>
+      <p class="view-lead">Poprzednie tygodnie ISO. Bieżący tydzień widać na Dashboardzie i w Terminalach.</p>
+      <div id="history-list"></div>
+      <p class="empty-state" id="history-empty" hidden>Brak zapisanych wcześniejszych tygodni.</p>
+    </section>
+
+    <!-- USUNIĘTE -->
+    <section class="view" id="view-deleted" data-view="deleted" hidden>
+      <h1 class="view-title">Usunięte</h1>
+      <p class="view-lead">Rekordy nie są kasowane — możesz je przywrócić.</p>
+      <ul class="deleted-list" id="deleted-list"></ul>
+      <p class="empty-state" id="deleted-empty" hidden>Brak usuniętych terminali.</p>
+    </section>
+
+    <!-- USTAWIENIA -->
+    <section class="view" id="view-settings" data-view="settings" hidden>
+      <h1 class="view-title">Ustawienia</h1>
+
+      <div class="settings-block">
+        <h2 class="section-title">Motyw</h2>
+        <div class="segmented" role="group" aria-label="Motyw">
+          <button type="button" class="seg-btn" data-theme="light">Jasny</button>
+          <button type="button" class="seg-btn" data-theme="dark">Ciemny</button>
+          <button type="button" class="seg-btn" data-theme="system">System</button>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <h2 class="section-title">Kopia zapasowa</h2>
+        <p class="muted">Eksport JSON zawiera terminale, historię lokalizacji i statusy wszystkich tygodni. Import nadpisuje dane na tym urządzeniu.</p>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="btn-export">Eksport JSON</button>
+          <label class="btn btn-ghost file-btn">
+            Import JSON
+            <input type="file" id="input-import" accept="application/json,.json" hidden />
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <h2 class="section-title">Dane</h2>
+        <p class="muted">Przechowywanie: <code>localStorage</code> w przeglądarce. Offline dzięki Service Workerowi.</p>
+        <button type="button" class="btn btn-danger" id="btn-reset">Przywróć listę startową</button>
+      </div>
+
+      <div class="settings-block">
+        <h2 class="section-title">O aplikacji</h2>
+        <p class="muted">Kontrola terminali · ISO Week · GitHub Pages · bez backendu</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Menu główne">
+    <button type="button" class="nav-item active" data-nav="dashboard">
+      <span class="nav-ico" aria-hidden="true">▣</span>
+      <span>Dashboard</span>
+    </button>
+    <button type="button" class="nav-item" data-nav="terminals">
+      <span class="nav-ico" aria-hidden="true">☰</span>
+      <span>Terminale</span>
+    </button>
+    <button type="button" class="nav-item" data-nav="unchecked">
+      <span class="nav-ico" aria-hidden="true">☐</span>
+      <span>Niespr.</span>
+    </button>
+    <button type="button" class="nav-item" data-nav="history">
+      <span class="nav-ico" aria-hidden="true">◷</span>
+      <span>Historia</span>
+    </button>
+    <button type="button" class="nav-item" data-nav="deleted">
+      <span class="nav-ico" aria-hidden="true">⌫</span>
+      <span>Usunięte</span>
+    </button>
+    <button type="button" class="nav-item" data-nav="settings">
+      <span class="nav-ico" aria-hidden="true">⚙</span>
+      <span>Ustaw.</span>
+    </button>
+  </nav>
+
+  <!-- Modal: dodaj -->
+  <dialog class="modal" id="modal-add">
+    <form method="dialog" id="form-add" class="modal-card">
+      <h2>Dodaj terminal</h2>
+      <label>
+        <span>Numer terminala</span>
+        <input type="text" id="add-name" name="name" required placeholder="PXCEMPL-M1xxx" autocomplete="off" />
+      </label>
+      <label>
+        <span>Lokalizacja</span>
+        <input type="text" id="add-location" name="location" list="location-datalist" required placeholder="np. IT" autocomplete="off" />
+      </label>
+      <p class="form-error" id="add-error" hidden></p>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary" value="ok">Zapisz</button>
+        <button type="button" class="btn btn-ghost" id="add-cancel">Anuluj</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal: przenieś -->
+  <dialog class="modal" id="modal-move">
+    <form method="dialog" id="form-move" class="modal-card">
+      <h2>Przenieś terminal</h2>
+      <p class="muted" id="move-terminal-name"></p>
+      <label>
+        <span>Nowa lokalizacja</span>
+        <input type="text" id="move-location" list="location-datalist" required autocomplete="off" />
+      </label>
+      <p class="form-error" id="move-error" hidden></p>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary" value="ok">Przenieś</button>
+        <button type="button" class="btn btn-ghost" id="move-cancel">Anuluj</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal: szczegóły / historia lokalizacji -->
+  <dialog class="modal" id="modal-detail">
+    <div class="modal-card">
+      <h2 id="detail-title">Terminal</h2>
+      <dl class="detail-dl" id="detail-dl"></dl>
+      <h3 class="section-title">Historia lokalizacji</h3>
+      <ul class="history-moves" id="detail-history"></ul>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="detail-close">Zamknij</button>
+      </div>
+    </div>
+  </dialog>
+
+  <datalist id="location-datalist"></datalist>
+
+  <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
