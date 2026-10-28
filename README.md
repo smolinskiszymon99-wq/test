@@ -92,17 +92,20 @@ python3 -m http.server 8000
 ## Struktura plików
 
 ```
-index.html                  – struktura strony
+index.html                  – struktura strony (galeria Drive)
 style.css                   – wygląd
 app.js                      – logika (Drive API, galeria, podgląd)
 config.js                   – Twoja konfiguracja
 .github/workflows/deploy.yml – publikacja na GitHub Pages
+kontrola-terminali/         – kontrola terminali produkcyjnych (PWA)
 terminy-komunikacja/        – osobne narzędzie: skrypt szukający terminu w Wydziale Komunikacji w Łańcucie
 android/                    – to samo jako aplikacja na Androida (APK budowany przez GitHub Actions)
 ```
 
 ## Inne narzędzia
 
+- [`kontrola-terminali/`](kontrola-terminali/README.md) – cotygodniowa kontrola terminali produkcyjnych
+  (PWA, offline, localStorage, GitHub Pages).
 - [`terminy-komunikacja/`](terminy-komunikacja/README.md) – skrypt sprawdzający wolne terminy
   rejestracji pojazdu na [komunikacja.powiatlancut.pl](https://komunikacja.powiatlancut.pl/)
   z powiadomieniami na telefon.
