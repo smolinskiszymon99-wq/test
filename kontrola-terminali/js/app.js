@@ -15,6 +15,7 @@
     normalizeName,
   } = window.TK;
   const Store = window.Store;
+  const GitHubBackup = window.GitHubBackup;
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -44,6 +45,7 @@
     modalAdd: $("#modal-add"),
     modalMove: $("#modal-move"),
     modalDetail: $("#modal-detail"),
+    modalGh: $("#modal-gh-backups"),
     formAdd: $("#form-add"),
     formMove: $("#form-move"),
     addName: $("#add-name"),
@@ -55,6 +57,16 @@
     detailTitle: $("#detail-title"),
     detailDl: $("#detail-dl"),
     detailHistory: $("#detail-history"),
+    ghToken: $("#gh-token"),
+    ghOwner: $("#gh-owner"),
+    ghRepo: $("#gh-repo"),
+    ghBranch: $("#gh-branch"),
+    ghPath: $("#gh-path"),
+    ghLabel: $("#gh-label"),
+    ghStatus: $("#gh-status"),
+    ghBackupList: $("#gh-backup-list"),
+    ghBackupEmpty: $("#gh-backup-empty"),
+    ghBackupError: $("#gh-backup-error"),
   };
 
   let currentView = "dashboard";
@@ -283,6 +295,75 @@
       .join("");
   }
 
+  function fillGitHubForm() {
+    const cfg = GitHubBackup.loadConfig();
+    ui.ghToken.value = cfg.token || "";
+    ui.ghOwner.value = cfg.owner || "";
+    ui.ghRepo.value = cfg.repo || "";
+    ui.ghBranch.value = cfg.branch || "main";
+    ui.ghPath.value = cfg.path || "kontrola-terminali/backups";
+    if (cfg.token && cfg.owner && cfg.repo) {
+      ui.ghStatus.textContent = `Gotowe: ${cfg.owner}/${cfg.repo} @ ${cfg.branch} → ${cfg.path}`;
+    } else {
+      ui.ghStatus.textContent = "Uzupełnij token i repozytorium, potem „Zapisz ustawienia”.";
+    }
+  }
+
+  function readGitHubForm() {
+    return {
+      token: ui.ghToken.value.trim(),
+      owner: ui.ghOwner.value.trim(),
+      repo: ui.ghRepo.value.trim(),
+      branch: ui.ghBranch.value.trim() || "main",
+      path: ui.ghPath.value.trim() || "kontrola-terminali/backups",
+    };
+  }
+
+  function setBusy(btn, busy, labelBusy) {
+    if (!btn) return;
+    if (busy) {
+      btn.dataset.prevLabel = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = labelBusy || "…";
+    } else {
+      btn.disabled = false;
+      if (btn.dataset.prevLabel) btn.textContent = btn.dataset.prevLabel;
+    }
+  }
+
+  async function renderGhBackupList() {
+    ui.ghBackupError.hidden = true;
+    ui.ghBackupList.innerHTML = `<p class="muted">Ładowanie…</p>`;
+    ui.ghBackupEmpty.hidden = true;
+    try {
+      const items = await GitHubBackup.listBackups();
+      if (!items.length) {
+        ui.ghBackupList.innerHTML = "";
+        ui.ghBackupEmpty.hidden = false;
+        return;
+      }
+      ui.ghBackupEmpty.hidden = true;
+      ui.ghBackupList.innerHTML = items
+        .map((item, idx) => {
+          const kb = Math.max(1, Math.round((item.size || 0) / 1024));
+          return `
+          <div class="backup-item" data-idx="${idx}">
+            <div>
+              <p class="name">${escapeHtml(item.name)}</p>
+              <p class="meta">${kb} KB · ${escapeHtml(item.path)}</p>
+            </div>
+            <button type="button" class="btn btn-primary" data-action="import-gh">Importuj</button>
+          </div>`;
+        })
+        .join("");
+      ui.ghBackupList._items = items;
+    } catch (err) {
+      ui.ghBackupList.innerHTML = "";
+      ui.ghBackupError.textContent = err.message || "Błąd pobierania listy";
+      ui.ghBackupError.hidden = false;
+    }
+  }
+
   function renderAll() {
     Store.ensureWeek();
     updateHeader();
@@ -293,6 +374,7 @@
     if (currentView === "unchecked") renderUnchecked();
     if (currentView === "history") renderHistory();
     if (currentView === "deleted") renderDeleted();
+    if (currentView === "settings") fillGitHubForm();
   }
 
   function showView(name) {
@@ -514,10 +596,89 @@
     renderAll();
   });
 
+  $("#btn-gh-save").addEventListener("click", () => {
+    GitHubBackup.saveConfig(readGitHubForm());
+    fillGitHubForm();
+    toast("Zapisano ustawienia GitHub");
+  });
+
+  $("#btn-gh-clear-token").addEventListener("click", () => {
+    GitHubBackup.clearToken();
+    ui.ghToken.value = "";
+    fillGitHubForm();
+    toast("Token usunięty z tej przeglądarki");
+  });
+
+  $("#btn-gh-test").addEventListener("click", async () => {
+    const btn = $("#btn-gh-test");
+    GitHubBackup.saveConfig(readGitHubForm());
+    setBusy(btn, true, "Test…");
+    try {
+      const info = await GitHubBackup.testConnection();
+      ui.ghStatus.textContent = `OK: ${info.fullName} (${info.private ? "prywatne" : "publiczne"}) → ${info.path}`;
+      toast("Połączenie OK");
+    } catch (err) {
+      ui.ghStatus.textContent = err.message || "Błąd połączenia";
+      toast(err.message || "Błąd połączenia");
+    } finally {
+      setBusy(btn, false);
+    }
+  });
+
+  $("#btn-gh-upload").addEventListener("click", async () => {
+    const btn = $("#btn-gh-upload");
+    GitHubBackup.saveConfig(readGitHubForm());
+    setBusy(btn, true, "Wysyłanie…");
+    try {
+      const result = await GitHubBackup.uploadBackup(Store.exportJSON(), ui.ghLabel.value);
+      ui.ghStatus.textContent = `Wysłano: ${result.path}`;
+      toast("Kopia wysłana na GitHub");
+    } catch (err) {
+      ui.ghStatus.textContent = err.message || "Błąd wysyłania";
+      toast(err.message || "Błąd wysyłania");
+    } finally {
+      setBusy(btn, false);
+    }
+  });
+
+  $("#btn-gh-list").addEventListener("click", async () => {
+    GitHubBackup.saveConfig(readGitHubForm());
+    ui.modalGh.showModal();
+    await renderGhBackupList();
+  });
+
+  $("#gh-backup-close").addEventListener("click", () => ui.modalGh.close());
+  $("#gh-backup-refresh").addEventListener("click", () => renderGhBackupList());
+
+  ui.ghBackupList.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-action=import-gh]");
+    if (!btn) return;
+    const itemEl = btn.closest(".backup-item");
+    const items = ui.ghBackupList._items || [];
+    const item = items[Number(itemEl.dataset.idx)];
+    if (!item) return;
+    if (!confirm(`Zaimportować „${item.name}”? Nadpisze dane lokalne na tym urządzeniu.`)) return;
+    setBusy(btn, true, "…");
+    try {
+      const text = await GitHubBackup.downloadBackup(item);
+      Store.importJSON(text);
+      ui.modalGh.close();
+      toast("Zaimportowano z GitHub");
+      renderAll();
+    } catch (err) {
+      ui.ghBackupError.textContent = err.message || "Błąd importu";
+      ui.ghBackupError.hidden = false;
+      toast(err.message || "Błąd importu");
+    } finally {
+      setBusy(btn, false);
+    }
+  });
+
   // Persist open accordion across re-renders within session; hydrate theme + seed
   Store.seedIfNeeded();
   Store.ensureWeek();
   applyTheme();
+  fillGitHubForm();
   showView("dashboard");
   Store.subscribe(() => {
     // keep UI in sync if another tab updates storage
@@ -540,6 +701,7 @@
   // Expose for debugging / console checks
   window.__TK_DEBUG = {
     Store,
+    GitHubBackup,
     normalizeName,
     currentWeekKey,
   };

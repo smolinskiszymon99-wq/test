@@ -1,5 +1,5 @@
 /* Offline cache for GitHub Pages static app */
-const CACHE = "kontrola-terminali-v1";
+const CACHE = "kontrola-terminali-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const ASSETS = [
   "./js/utils.js",
   "./js/seed.js",
   "./js/store.js",
+  "./js/github.js",
   "./js/app.js",
   "./manifest.webmanifest",
   "./icons/icon.svg",

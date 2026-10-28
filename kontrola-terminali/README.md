@@ -39,8 +39,20 @@ Struktura:
 - Przenoszenie z historią lokalizacji
 - Soft-delete + przywracanie
 - Raport niesprawdzonych + kopiowanie
-- Import/export JSON, motyw jasny/ciemny/system
+- Import/export JSON (plik) oraz **sync przez GitHub** (ten sam repo)
+- Motyw jasny/ciemny/system
 - Service Worker (offline)
+
+## Kopie na GitHub (bez zewnętrznego serwera)
+
+Aplikacja zapisuje JSON w folderze `kontrola-terminali/backups/` przez [GitHub Contents API](https://docs.github.com/en/rest/repos/contents).
+
+1. Utwórz **Personal Access Token** (Fine-grained): dostęp do tego repo, uprawnienie **Contents: Read and write**.
+2. W aplikacji: **Ustawienia → GitHub** — wklej token, owner/repo (na Pages zwykle wykryte automatycznie), gałąź `main`, folder `kontrola-terminali/backups`.
+3. **Wyślij na GitHub** — powstaje plik np. `2026-W44_hala-piatek_….json`.
+4. **Pobierz z GitHub…** — lista zapisów → **Importuj** (nadpisuje dane lokalne).
+
+Token siedzi tylko w `localStorage` tej przeglądarki (`TERMINAL_KONTROLA_GITHUB_V1`) i **nie** jest dołączany do eksportu JSON.
 
 ## Lokalny podgląd
 

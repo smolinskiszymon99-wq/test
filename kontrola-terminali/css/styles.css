@@ -708,6 +708,85 @@ body::before {
   margin-bottom: 22px;
 }
 
+.github-form label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.github-form label > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.github-form input {
+  width: 100%;
+  min-height: var(--touch);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  color: var(--ink);
+  font: inherit;
+  padding: 0 14px;
+}
+
+.github-form input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-color: var(--accent);
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.modal-card-wide {
+  width: min(520px, 100%);
+}
+
+.backup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(50vh, 360px);
+  overflow: auto;
+  margin: 12px 0;
+}
+
+.backup-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--bg);
+}
+
+.backup-item .name {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  word-break: break-all;
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.backup-item .meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .settings-block code {
   font-family: var(--mono);
   font-size: 0.85em;
