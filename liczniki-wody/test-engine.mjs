@@ -81,8 +81,8 @@ const midAvg = midSum / midN;
 assert(satAvg > midAvg, `Saturday avg ${satAvg} should exceed midweek ${midAvg}`);
 const sunOverSatRate = sunHigher / weekendPairs;
 assert(
-  sunOverSatRate < 0.22,
-  `Sunday>Saturday too often: ${(sunOverSatRate * 100).toFixed(1)}% of ${weekendPairs} weekends`
+  sunOverSatRate === 0,
+  `Sunday>Saturday should never remain after swap: ${(sunOverSatRate * 100).toFixed(1)}% of ${weekendPairs} weekends`
 );
 
 // L1/L3 not perfectly proportional to L2 each day

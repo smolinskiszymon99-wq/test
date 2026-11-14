@@ -130,31 +130,16 @@
     return Math.max(0.12, w);
   }
 
-  /**
-   * Dla par sobota→niedziela w tym samym weekendzie: jeśli niedziela wyszła wyżej,
-   * w większości przypadków ściągnij ją poniżej soboty — bez podbijania soboty.
-   * Odjęta woda wraca na dni robocze. Rzadkie inwersje (~12%) zostają dla realizmu.
-   */
-  function dampenSundayAboveSaturday(dates, daily, rng, keepInversionRate = 0.12) {
+  /** Jeśli niedziela > sobota w tym samym weekendzie — zamień wartości miejscami. */
+  function swapSundaySaturdayIfNeeded(dates, daily) {
     const out = daily.slice();
     for (let i = 0; i < out.length - 1; i++) {
       if (dates[i].getDay() !== 6) continue;
       if (dates[i + 1].getDay() !== 0) continue;
-      if (out[i + 1] <= out[i]) continue;
-      if (rng() < keepInversionRate) continue;
-
-      const newSun = out[i] * (0.78 + rng() * 0.18);
-      const freed = out[i + 1] - newSun;
-      out[i + 1] = Math.max(0, newSun);
-
-      const weekdays = [];
-      for (let j = 0; j < out.length; j++) {
-        const dow = dates[j].getDay();
-        if (dow >= 1 && dow <= 5) weekdays.push(j);
-      }
-      if (weekdays.length && freed > 0) {
-        const add = freed / weekdays.length;
-        for (const j of weekdays) out[j] += add;
+      if (out[i + 1] > out[i]) {
+        const tmp = out[i];
+        out[i] = out[i + 1];
+        out[i + 1] = tmp;
       }
     }
     return out;
@@ -672,17 +657,19 @@
     for (let i = 0; i < intervals; i++) {
       weights.push(dayBaseWeight(dates[i], rng));
     }
-    weights = dampenSundayAboveSaturday(dates, weights, rng);
+    weights = swapSundaySaturdayIfNeeded(dates, weights);
 
     // Licznik 2 jest źródłem dziennego zużycia — wagami + limitem, bez późniejszego „wyrównywania”
     let finalM2 = allocateWithCap(totals[1], weights, maxM2, rng);
-    // Po szumie alokacji ponownie ogranicz częstotliwość niedziela > sobota
-    finalM2 = dampenSundayAboveSaturday(dates, finalM2, rng);
+    // Jeśli niedziela > sobota — zamień miejscami
+    finalM2 = swapSundaySaturdayIfNeeded(dates, finalM2);
     // Limit dzienny nie powinien padać na >10% dni — rozłóż nadmiar
     if (maxM2 != null && maxM2 > 0) {
       finalM2 = normalizeExactMaxHits(finalM2, totals[1], maxM2, weights, rng, 0.1);
+      finalM2 = swapSundaySaturdayIfNeeded(dates, finalM2);
     } else {
       finalM2 = normalizeExact(finalM2, totals[1], null);
+      finalM2 = swapSundaySaturdayIfNeeded(dates, finalM2);
     }
 
     const m2Sum = finalM2.reduce((a, b) => a + b, 0);
@@ -718,6 +705,7 @@
       // Jeśli roundSeriesExact znowu wypchnął za dużo na max — miękka korekta
       use2 = enforceMaxHitShareRounded(use2, maxM2, weights, rng, 0.1, totals[1]);
     }
+    use2 = swapSundaySaturdayIfNeeded(dates, use2);
 
     const rows = [];
     let c1 = roundTo(m1Start);
