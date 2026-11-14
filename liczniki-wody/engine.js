@@ -311,6 +311,269 @@
     return normalizeExact(noisy, total, maxPerDay);
   }
 
+  function daysAtMax(values, maxPerDay, eps) {
+    const idx = [];
+    for (let i = 0; i < values.length; i++) {
+      if (values[i] >= maxPerDay - eps) idx.push(i);
+    }
+    return idx;
+  }
+
+  /**
+   * Limit: wartość maksymalna nie powinna padać na >10% dni w okresie.
+   * Nadmiar dni „na limicie” ściągany poniżej max, a różnica rozkładana
+   * na inne dni (najpierw poniżej soft-cap, bez tworzenia nowych hitów limitu).
+   */
+  function limitMaxHitFrequency(daily, maxPerDay, weights, rng, maxShare = 0.1) {
+    if (maxPerDay == null || !(maxPerDay > 0)) return daily.slice();
+    const n = daily.length;
+    if (n === 0) return [];
+
+    const eps = Math.max(1e-9, maxPerDay * 1e-6);
+    const allowed = Math.floor(n * maxShare); // „więcej niż 10%” → redukuj
+    const out = daily.map((v) => Math.min(Math.max(0, v), maxPerDay));
+
+    let hits = daysAtMax(out, maxPerDay, eps);
+    if (hits.length <= allowed) return out;
+
+    // Zostaw do `allowed` dni na limicie (najwyższe wagi); resztę ściągnij
+    hits.sort((a, b) => (weights[b] || 0) - (weights[a] || 0));
+    const toReduce = hits.slice(allowed);
+    let freed = 0;
+    for (const i of toReduce) {
+      const target = maxPerDay * (0.84 + rng() * 0.12); // ~84–96% max
+      if (out[i] > target) {
+        freed += out[i] - target;
+        out[i] = target;
+      }
+    }
+
+    const softCap = maxPerDay * 0.98;
+    let remaining = freed;
+    let guard = 0;
+    while (remaining > 1e-12 && guard < n * 8) {
+      guard += 1;
+      const receivers = [];
+      for (let i = 0; i < n; i++) {
+        if (out[i] < softCap - 1e-12) receivers.push(i);
+      }
+      if (!receivers.length) break;
+      const add = remaining / receivers.length;
+      for (const i of receivers) {
+        const room = softCap - out[i];
+        const d = Math.min(room, Math.max(0, add));
+        out[i] += d;
+        remaining -= d;
+      }
+    }
+
+    // Reszta: dołóż do hard max, nie przekraczając allowed liczby hitów
+    guard = 0;
+    while (remaining > 1e-12 && guard < n * 8) {
+      guard += 1;
+      const hitsNow = daysAtMax(out, maxPerDay, eps);
+      const hitSet = new Set(hitsNow);
+      const receivers = [];
+      for (let i = 0; i < n; i++) {
+        let ceiling = maxPerDay;
+        if (!hitSet.has(i) && hitsNow.length >= allowed) ceiling = maxPerDay - eps;
+        if (ceiling - out[i] > 1e-12) receivers.push(i);
+      }
+      if (!receivers.length) break;
+      const add = remaining / receivers.length;
+      for (const i of receivers) {
+        const hits = daysAtMax(out, maxPerDay, eps);
+        const setNow = new Set(hits);
+        let ceiling = maxPerDay;
+        if (!setNow.has(i) && hits.length >= allowed) ceiling = maxPerDay - eps;
+        const room = ceiling - out[i];
+        const d = Math.min(Math.max(0, room), Math.max(0, add));
+        out[i] += d;
+        remaining -= d;
+      }
+    }
+
+    return out;
+  }
+
+  /** Dopnij sumę do target, starając się nie robić >10% dni na limicie. */
+  function normalizeExactMaxHits(values, target, maxPerDay, weights, rng, maxShare = 0.1) {
+    let out = limitMaxHitFrequency(values, maxPerDay, weights, rng, maxShare);
+    if (maxPerDay == null || !(maxPerDay > 0)) {
+      return normalizeExact(out, target, null);
+    }
+
+    const n = out.length;
+    const eps = Math.max(1e-9, maxPerDay * 1e-6);
+    const allowed = Math.floor(n * maxShare);
+    let residual = target - out.reduce((a, b) => a + b, 0);
+    let passes = 0;
+
+    while (Math.abs(residual) > 1e-10 && passes < n * 10) {
+      passes += 1;
+      if (residual > 0) {
+        const hits = daysAtMax(out, maxPerDay, eps);
+        const hitSet = new Set(hits);
+        const softCap = maxPerDay * 0.98;
+        let candidates = [];
+        for (let i = 0; i < n; i++) {
+          if (out[i] < softCap - 1e-12) candidates.push(i);
+        }
+        if (!candidates.length) {
+          for (let i = 0; i < n; i++) {
+            const room = maxPerDay - out[i];
+            if (room <= 1e-12) continue;
+            if (hitSet.has(i) || hits.length < allowed) candidates.push(i);
+            else if (out[i] < maxPerDay - eps) candidates.push(i);
+          }
+        }
+        if (!candidates.length) break;
+        const add = residual / candidates.length;
+        for (const i of candidates) {
+          const hitsNow = daysAtMax(out, maxPerDay, eps);
+          const setNow = new Set(hitsNow);
+          let ceiling = maxPerDay;
+          if (!setNow.has(i) && hitsNow.length >= allowed) ceiling = maxPerDay - eps;
+          const room = ceiling - out[i];
+          const d = Math.min(Math.max(0, room), add);
+          out[i] += d;
+          residual -= d;
+        }
+      } else {
+        const candidates = [];
+        for (let i = 0; i < n; i++) {
+          if (out[i] > 1e-12) candidates.push(i);
+        }
+        if (!candidates.length) break;
+        const add = residual / candidates.length; // negative
+        for (const i of candidates) {
+          const d = Math.max(-out[i], add);
+          out[i] += d;
+          residual -= d;
+        }
+      }
+    }
+
+    // Ostateczny float-fix
+    residual = target - out.reduce((a, b) => a + b, 0);
+    if (Math.abs(residual) > 1e-10) {
+      const hits = daysAtMax(out, maxPerDay, eps);
+      const hitSet = new Set(hits);
+      for (let i = n - 1; i >= 0; i--) {
+        let ceiling = maxPerDay;
+        if (!hitSet.has(i) && hits.length >= allowed) ceiling = maxPerDay - eps;
+        const next = out[i] + residual;
+        if (next < -1e-12 || next > ceiling + 1e-12) continue;
+        out[i] = Math.max(0, next);
+        break;
+      }
+    }
+
+    // Jeszcze raz zetnij nadmiar hitów, jeśli normalizacja je odtworzyła
+    out = limitMaxHitFrequency(out, maxPerDay, weights, rng, maxShare);
+    const sum2 = out.reduce((a, b) => a + b, 0);
+    if (Math.abs(sum2 - target) > 0.01) {
+      // Przy bardzo wysokim totale nie da się jednocześnie trzymać ≤10% na max —
+      // wróć do twardego limitu dziennego (bez limitu częstości).
+      return normalizeExact(values, target, maxPerDay);
+    }
+    // Dociągnij drobny residual bez tworzenia nowych hitów jeśli możliwe
+    residual = target - out.reduce((a, b) => a + b, 0);
+    if (Math.abs(residual) > 1e-10) {
+      const hits = daysAtMax(out, maxPerDay, eps);
+      const hitSet = new Set(hits);
+      for (let i = 0; i < n && Math.abs(residual) > 1e-10; i++) {
+        let ceiling = maxPerDay;
+        if (!hitSet.has(i) && hits.length >= allowed) ceiling = maxPerDay - eps;
+        if (residual > 0) {
+          const room = ceiling - out[i];
+          const d = Math.min(room, residual);
+          if (d > 0) {
+            out[i] += d;
+            residual -= d;
+          }
+        } else if (out[i] > 0) {
+          const d = Math.max(-out[i], residual);
+          out[i] += d;
+          residual -= d;
+        }
+      }
+    }
+
+    return out;
+  }
+
+  /** Korekta po zaokrągleniu: max na ≤10% dni, suma exact, krok 0.001. */
+  function enforceMaxHitShareRounded(values, maxPerDay, weights, rng, maxShare, target) {
+    if (maxPerDay == null || !(maxPerDay > 0)) return values.slice();
+    const n = values.length;
+    const step = Number((1 / 10 ** DECIMALS).toFixed(DECIMALS));
+    const maxR = roundTo(maxPerDay);
+    const allowed = Math.floor(n * maxShare);
+    const out = values.map((v) => Math.min(roundTo(v), maxR));
+
+    const hitIdx = () => {
+      const idx = [];
+      for (let i = 0; i < n; i++) if (out[i] >= maxR - 1e-12) idx.push(i);
+      return idx;
+    };
+
+    let hits = hitIdx();
+    if (hits.length > allowed) {
+      hits.sort((a, b) => (weights[b] || 0) - (weights[a] || 0));
+      const toReduce = hits.slice(allowed);
+      for (const i of toReduce) {
+        // Ściągnij o kilka kroków poniżej max
+        const stepsDown = 2 + Math.floor(rng() * 6); // 0.002–0.007
+        out[i] = roundTo(Math.max(0, maxR - stepsDown * step));
+      }
+    }
+
+    // Dopnij sumę
+    let diff = roundTo(roundTo(target) - roundTo(out.reduce((a, b) => a + b, 0)));
+    let guard = 0;
+    while (Math.abs(diff) >= step / 2 && guard < n * 30) {
+      guard += 1;
+      const hitsNow = hitIdx();
+      const hitSet = new Set(hitsNow);
+      if (diff > 0) {
+        const order = [...Array(n).keys()].sort(
+          (a, b) => (weights[b] || 0) - (weights[a] || 0)
+        );
+        let moved = false;
+        for (const i of order) {
+          let ceiling = maxR;
+          if (!hitSet.has(i) && hitsNow.length >= allowed) {
+            ceiling = roundTo(maxR - step);
+          }
+          if (out[i] + step <= ceiling + 1e-12) {
+            out[i] = roundTo(out[i] + step);
+            diff = roundTo(diff - step);
+            moved = true;
+            break;
+          }
+        }
+        if (!moved) break;
+      } else {
+        const order = [...Array(n).keys()].sort(
+          (a, b) => (weights[a] || 0) - (weights[b] || 0)
+        );
+        let moved = false;
+        for (const i of order) {
+          if (out[i] >= step) {
+            out[i] = roundTo(out[i] - step);
+            diff = roundTo(diff + step);
+            moved = true;
+            break;
+          }
+        }
+        if (!moved) break;
+      }
+    }
+
+    return out;
+  }
+
   /**
    * Build meter 1/3 daily series loosely tracking meter 2's shape
    * (roughly proportional to totals, with intentional mismatch).
@@ -415,7 +678,12 @@
     let finalM2 = allocateWithCap(totals[1], weights, maxM2, rng);
     // Po szumie alokacji ponownie ogranicz częstotliwość niedziela > sobota
     finalM2 = dampenSundayAboveSaturday(dates, finalM2, rng);
-    finalM2 = normalizeExact(finalM2, totals[1], maxM2);
+    // Limit dzienny nie powinien padać na >10% dni — rozłóż nadmiar
+    if (maxM2 != null && maxM2 > 0) {
+      finalM2 = normalizeExactMaxHits(finalM2, totals[1], maxM2, weights, rng, 0.1);
+    } else {
+      finalM2 = normalizeExact(finalM2, totals[1], null);
+    }
 
     const m2Sum = finalM2.reduce((a, b) => a + b, 0);
     if (Math.abs(m2Sum - totals[1]) > 0.01) {
@@ -430,7 +698,7 @@
     const finalM3 = followMeter2Shape(finalM2, totals[2], totals[1], weights, rng);
 
     const use1 = roundSeriesExact(finalM1, totals[0]);
-    const use2 = roundSeriesExact(finalM2, totals[1], maxM2);
+    let use2 = roundSeriesExact(finalM2, totals[1], maxM2);
     const use3 = roundSeriesExact(finalM3, totals[2]);
 
     if (maxM2 != null && maxM2 > 0) {
@@ -441,6 +709,14 @@
             "Zwiększ limit lub skróć okres."
         );
       }
+      // Po zaokrągleniu znów pilnuj ≤10% dni na limicie
+      use2 = roundSeriesExact(
+        normalizeExactMaxHits(use2, totals[1], maxM2, weights, rng, 0.1),
+        totals[1],
+        maxM2
+      );
+      // Jeśli roundSeriesExact znowu wypchnął za dużo na max — miękka korekta
+      use2 = enforceMaxHitShareRounded(use2, maxM2, weights, rng, 0.1, totals[1]);
     }
 
     const rows = [];
