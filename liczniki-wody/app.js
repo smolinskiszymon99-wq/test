@@ -8,7 +8,8 @@
     computeDistribution,
   } = window.WaterMetersEngine;
 
-  const HISTORY_KEY = "liczniki-wody-historia-v1";
+  // v2: zużycie w kolumnie = wyłącznie Δ licznika 2 (stare wpisy v1 były sumą 3 liczników)
+  const HISTORY_KEY = "liczniki-wody-historia-v2";
   const HISTORY_LIMIT = 20;
 
   const form = document.getElementById("calc-form");
@@ -94,11 +95,31 @@
     document.getElementById("max-m2").value = data.maxM2 == null ? "" : data.maxM2;
   }
 
+  /** Zawsze licz zużycie z samych stanów L2 — nigdy z sumy 3 liczników / starej historii. */
+  function withMeter2Consumption(rows) {
+    return rows.map((row, i) => {
+      const next = rows[i + 1];
+      if (!next) {
+        return { ...row, consumption: null, consumptionM2: null, isLast: true };
+      }
+      const d2 = Number((next.m2 - row.m2).toFixed(3));
+      return {
+        ...row,
+        consumption: d2,
+        consumptionM2: d2,
+        deltaM1: Number((next.m1 - row.m1).toFixed(3)),
+        deltaM3: Number((next.m3 - row.m3).toFixed(3)),
+        isLast: false,
+      };
+    });
+  }
+
   function renderResults(rows, inputs, totals) {
     resultsBody.innerHTML = "";
     let selected = null;
+    const displayRows = withMeter2Consumption(rows);
 
-    rows.forEach((row) => {
+    displayRows.forEach((row) => {
       const tr = document.createElement("tr");
       if (row.isLast) tr.classList.add("is-last");
 
@@ -121,8 +142,11 @@
         } else {
           const td = document.createElement("td");
           td.textContent = content;
-          if (idx === 3 && row.consumption != null) {
-            td.title = `Δ L1: ${formatNum(row.deltaM1 ?? 0)} · Δ L3: ${formatNum(row.deltaM3 ?? 0)}`;
+          if (idx === 3) {
+            td.classList.add("col-consumption");
+            if (row.consumption != null) {
+              td.title = "Licznik 2: dzień następny − ten dzień";
+            }
           }
           tr.appendChild(td);
         }
@@ -198,8 +222,9 @@
         )}</span>`;
       btn.addEventListener("click", () => {
         fillInputs(item.inputs);
-        lastRows = item.rows;
-        renderResults(item.rows, item.inputs, item.totals || [0, 0, 0]);
+        const fixedRows = withMeter2Consumption(item.rows);
+        lastRows = fixedRows;
+        renderResults(fixedRows, item.inputs, item.totals || [0, 0, 0]);
         showError("");
         historyPanel.hidden = true;
         btnHistory.setAttribute("aria-expanded", "false");
@@ -313,6 +338,13 @@
     localStorage.removeItem(HISTORY_KEY);
     renderHistory();
   });
+
+  // Usuń starą historię v1 (tam zużycie bywało sumą 3 liczników)
+  try {
+    localStorage.removeItem("liczniki-wody-historia-v1");
+  } catch {
+    /* ignore */
+  }
 
   const today = new Date();
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
