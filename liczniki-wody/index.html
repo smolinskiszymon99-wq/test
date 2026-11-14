@@ -107,24 +107,24 @@
               <th>Data</th>
               <th>Stan licznika 1</th>
               <th>Stan licznika 2</th>
-              <th>Zużycie w danym dniu</th>
+              <th>Zużycie (licznik 2)</th>
               <th>Stan licznika 3</th>
             </tr>
           </thead>
           <tbody id="results-body"></tbody>
         </table>
       </div>
-      <p class="hint">Kliknij wiersz, aby go podświetlić. Zużycie = stan następnego dnia − stan tego dnia (suma trzech liczników).</p>
+      <p class="hint">Kliknij wiersz, aby go podświetlić. Zużycie = stan licznika&nbsp;2 następnego dnia − stan tego dnia.</p>
     </section>
 
     <section class="method">
       <h2>Jak liczony jest rozkład</h2>
       <p>
-        Wagi dni bazują na badaniach zużycia w gospodarstwach domowych (weekend zwykle wyżej,
-        święta zmienne, lato lekko wyżej), ale każda wartość dostaje losowy współczynnik —
-        sobota w jednym tygodniu może być mocniejsza, w innym tylko lekko powyżej średniej.
-        Dzienny udział trzech liczników jest zbliżony do ich udziału w całym okresie, lecz nie idealnie równy.
-        Limit dzienny dotyczy głównie licznika&nbsp;2.
+        Główne dzienne zużycie pochodzi z <strong>licznika&nbsp;2</strong> (to ta kolumna w tabeli).
+        Wagi dni bazują na badaniach zużycia w gospodarstwach (weekend zwykle wyżej, święta zmienne),
+        ale każda wartość dostaje losowy współczynnik — sobota nie ma zawsze tego samego procentu.
+        Liczniki&nbsp;1 i&nbsp;3 idą w ślad za kształtem licznika&nbsp;2 w miarę proporcjonalnie do swoich sum,
+        lecz nie dzień-w-dzień idealnie. Limit dzienny dotyczy licznika&nbsp;2.
       </p>
     </section>
   </main>

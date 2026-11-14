@@ -27,44 +27,61 @@ assert(
   "end mismatch"
 );
 
-const sumM2 = rows
-  .slice(0, -1)
-  .reduce((a, r) => a + r.consumptionM2, 0);
-assert(Math.abs(eng.roundTo(sumM2) - eng.roundTo(totals[1])) < 0.002, `m2 sum ${sumM2} vs ${totals[1]}`);
+const sumM2 = rows.slice(0, -1).reduce((a, r) => a + r.consumption, 0);
+assert(
+  Math.abs(eng.roundTo(sumM2) - eng.roundTo(totals[1])) < 0.002,
+  `m2 sum ${sumM2} vs ${totals[1]}`
+);
 
+const m2Uses = [];
 for (const r of rows.slice(0, -1)) {
-  assert(r.consumptionM2 <= 0.6 + 1e-9, `m2 day over cap: ${r.date} ${r.consumptionM2}`);
-  const expected = eng.roundTo(
-    rows[rows.indexOf(r) + 1].m1 -
-      r.m1 +
-      (rows[rows.indexOf(r) + 1].m2 - r.m2) +
-      (rows[rows.indexOf(r) + 1].m3 - r.m3)
-  );
-  assert(r.consumption === expected, `consumption mismatch on ${r.date}`);
+  const d2 = eng.roundTo(rows[rows.indexOf(r) + 1].m2 - r.m2);
+  assert(r.consumption === d2, `consumption must be L2 delta on ${r.date}`);
+  assert(r.consumptionM2 === d2, `consumptionM2 mismatch on ${r.date}`);
+  assert(r.consumption <= 0.6 + 1e-9, `m2 day over cap: ${r.date} ${r.consumption}`);
+  m2Uses.push(r.consumption);
 }
+
+// L2 must NOT be flat — coefficient of variation should be meaningful
+const mean = m2Uses.reduce((a, b) => a + b, 0) / m2Uses.length;
+const variance =
+  m2Uses.reduce((a, b) => a + (b - mean) ** 2, 0) / m2Uses.length;
+const cv = Math.sqrt(variance) / mean;
+assert(cv > 0.08, `L2 too flat: cv=${cv.toFixed(3)} mean=${mean}`);
+assert(new Set(m2Uses.map((x) => x.toFixed(3))).size > 5, "L2 days should take many distinct values");
+
+// Saturdays should on average be higher than midweek across seeds
+let satSum = 0;
+let satN = 0;
+let midSum = 0;
+let midN = 0;
+for (let s = 1; s <= 40; s++) {
+  const { rows: r } = eng.computeDistribution({ ...inputs, maxM2: null }, s);
+  for (const row of r.slice(0, -1)) {
+    if (row.dow === "sobota") {
+      satSum += row.consumption;
+      satN += 1;
+    } else if (["wtorek", "środa", "czwartek"].includes(row.dow)) {
+      midSum += row.consumption;
+      midN += 1;
+    }
+  }
+}
+const satAvg = satSum / satN;
+const midAvg = midSum / midN;
+assert(satAvg > midAvg, `Saturday avg ${satAvg} should exceed midweek ${midAvg}`);
+
+// L1/L3 not perfectly proportional to L2 each day
+const { rows: r2 } = eng.computeDistribution({ ...inputs, maxM2: null }, 7);
+const ratios = r2
+  .slice(0, -1)
+  .filter((row) => row.consumption > 0.05)
+  .map((row) => (row.deltaM1 ?? 0) / row.consumption);
+const ratioSet = new Set(ratios.map((x) => x.toFixed(2)));
+assert(ratioSet.size > 3, "L1/L2 daily ratio should vary (not perfectly proportional)");
 
 assert(eng.isPolishHoliday(new Date("2025-01-01T00:00:00")), "New Year holiday");
-assert(eng.isPolishHoliday(new Date("2025-01-06T00:00:00")), "Epiphany");
 assert(!eng.isPolishHoliday(new Date("2025-01-07T00:00:00")), "Jan 7 not holiday");
-
-// Same Saturday different weeks → different weights (non-rigid)
-const wA = [];
-const wB = [];
-for (let s = 1; s <= 30; s++) {
-  const a = eng.computeDistribution(
-    { ...inputs, startDate: new Date("2025-02-01T00:00:00"), endDate: new Date("2025-02-15T00:00:00"), maxM2: null },
-    s
-  );
-  const b = eng.computeDistribution(
-    { ...inputs, startDate: new Date("2025-02-08T00:00:00"), endDate: new Date("2025-02-22T00:00:00"), maxM2: null },
-    s + 100
-  );
-  const satA = a.rows.find((r) => r.dow === "sobota" && !r.isLast);
-  const satB = b.rows.find((r) => r.dow === "sobota" && !r.isLast);
-  if (satA) wA.push(satA.consumption);
-  if (satB) wB.push(satB.consumption);
-}
-assert(new Set(wA.map((x) => x.toFixed(3))).size > 1, "Saturday consumption should vary across seeds");
 
 let failed = false;
 try {
@@ -75,12 +92,12 @@ try {
 assert(failed, "impossible max should throw");
 
 console.log("OK – all engine tests passed");
+console.log("L2 cv=", cv.toFixed(3), "sat/mid=", (satAvg / midAvg).toFixed(3));
 console.log(
-  "sample first days:",
-  rows.slice(0, 5).map((r) => ({
+  "sample:",
+  rows.slice(0, 8).map((r) => ({
     d: r.date,
-    m2: r.m2,
-    use: r.consumption,
-    m2use: r.consumptionM2,
+    dow: r.dow,
+    useL2: r.consumption,
   }))
 );

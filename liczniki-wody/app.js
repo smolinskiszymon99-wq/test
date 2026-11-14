@@ -121,8 +121,8 @@
         } else {
           const td = document.createElement("td");
           td.textContent = content;
-          if (idx === 3 && row.consumptionM2 != null) {
-            td.title = `W tym licznik 2: ${formatNum(row.consumptionM2)}`;
+          if (idx === 3 && row.consumption != null) {
+            td.title = `Δ L1: ${formatNum(row.deltaM1 ?? 0)} · Δ L3: ${formatNum(row.deltaM3 ?? 0)}`;
           }
           tr.appendChild(td);
         }
@@ -141,12 +141,12 @@
       resultsBody.appendChild(tr);
     });
 
-    const totalAll = totals[0] + totals[1] + totals[2];
+    const totalM2 = totals[1];
     const days = rows.length - 1;
-    const avg = days > 0 ? totalAll / days : 0;
+    const avg = days > 0 ? totalM2 / days : 0;
     resultsSummary.textContent =
-      `Okres ${inputs.startVal} → ${inputs.endVal} · ${days} dni zużycia · ` +
-      `łącznie ${formatNum(totalAll)} · średnio ${formatNum(avg)} / dzień` +
+      `Okres ${inputs.startVal} → ${inputs.endVal} · ${days} dni · ` +
+      `zużycie L2 łącznie ${formatNum(totalM2)} · średnio ${formatNum(avg)} / dzień` +
       (inputs.maxM2 != null ? ` · limit L2: ${formatNum(inputs.maxM2)} / dzień` : "");
 
     resultsSection.hidden = false;
@@ -190,11 +190,11 @@
       const li = document.createElement("li");
       const btn = document.createElement("button");
       btn.type = "button";
-      const totalAll = (item.totals || [0, 0, 0]).reduce((a, b) => a + b, 0);
+      const totalM2 = (item.totals || [0, 0, 0])[1] || 0;
       btn.innerHTML =
         `<strong>${item.inputs.startVal} → ${item.inputs.endVal}</strong>` +
-        `<span class="meta">${formatWhen(item.createdAt)} · łącznie ${formatNum(
-          totalAll
+        `<span class="meta">${formatWhen(item.createdAt)} · L2 łącznie ${formatNum(
+          totalM2
         )}</span>`;
       btn.addEventListener("click", () => {
         fillInputs(item.inputs);
@@ -241,9 +241,10 @@
       "Swieto",
       "Stan_licznika_1",
       "Stan_licznika_2",
-      "Zuzycie_w_danym_dniu",
-      "Stan_licznika_3",
       "Zuzycie_licznik_2",
+      "Stan_licznika_3",
+      "Przyrost_licznik_1",
+      "Przyrost_licznik_3",
     ];
     const lines = [header.join(";")];
     rows.forEach((r) => {
@@ -256,7 +257,8 @@
           formatNum(r.m2),
           r.consumption == null ? "" : formatNum(r.consumption),
           formatNum(r.m3),
-          r.consumptionM2 == null ? "" : formatNum(r.consumptionM2),
+          r.deltaM1 == null ? "" : formatNum(r.deltaM1),
+          r.deltaM3 == null ? "" : formatNum(r.deltaM3),
         ].join(";")
       );
     });
