@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liczniki wody – rozkład zużycia</title>
+  <meta name="description" content="Rozkład zużycia wody z trzech liczników na poszczególne dni z realistycznymi wahaniami." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,650;9..144,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-layer" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <p class="brand-name">Liczniki wody</p>
+          <p class="brand-tag">Realistyczny rozkład zużycia na dni</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost" id="btn-history" aria-expanded="false" aria-controls="history-panel">
+        Historia
+      </button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="intro">
+      <h1>Wpisz stany trzech liczników</h1>
+      <p>
+        Program rozłoży łączne zużycie na kolejne dni z uwzględnieniem weekendów, świąt
+        i naturalnych wahań — bez sztywnych procentów.
+      </p>
+    </section>
+
+    <aside class="history-panel" id="history-panel" hidden>
+      <div class="history-head">
+        <h2>Ostatnie wyliczenia</h2>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-clear-history">Wyczyść</button>
+      </div>
+      <ul class="history-list" id="history-list"></ul>
+      <p class="history-empty" id="history-empty">Brak zapisanych wyliczeń.</p>
+    </aside>
+
+    <form id="calc-form" class="calc-form" novalidate>
+      <fieldset class="period">
+        <legend>Okres</legend>
+        <label>
+          <span>Data początkowa</span>
+          <input type="date" id="date-start" required />
+        </label>
+        <label>
+          <span>Data końcowa</span>
+          <input type="date" id="date-end" required />
+        </label>
+        <label>
+          <span>Maks. zużycie licznika 2 / dzień (opcjonalnie)</span>
+          <input type="number" id="max-m2" min="0" step="0.001" placeholder="np. 0.8" />
+        </label>
+      </fieldset>
+
+      <fieldset class="meters">
+        <legend>Liczniki</legend>
+        <div class="meter-grid">
+          <div class="meter-col head">
+            <span></span>
+            <span>Licznik 1</span>
+            <span>Licznik 2</span>
+            <span>Licznik 3</span>
+          </div>
+          <div class="meter-col">
+            <span class="col-label">Stan początkowy</span>
+            <input type="number" id="m1-start" min="0" step="0.001" required placeholder="Licznik 1" aria-label="Licznik 1 początek" />
+            <input type="number" id="m2-start" min="0" step="0.001" required placeholder="Licznik 2" aria-label="Licznik 2 początek" />
+            <input type="number" id="m3-start" min="0" step="0.001" required placeholder="Licznik 3" aria-label="Licznik 3 początek" />
+          </div>
+          <div class="meter-col">
+            <span class="col-label">Stan końcowy</span>
+            <input type="number" id="m1-end" min="0" step="0.001" required placeholder="Licznik 1" aria-label="Licznik 1 koniec" />
+            <input type="number" id="m2-end" min="0" step="0.001" required placeholder="Licznik 2" aria-label="Licznik 2 koniec" />
+            <input type="number" id="m3-end" min="0" step="0.001" required placeholder="Licznik 3" aria-label="Licznik 3 koniec" />
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Wylicz rozkład</button>
+        <button type="button" class="btn btn-ghost" id="btn-reroll" hidden>Losuj ponownie</button>
+        <button type="button" class="btn btn-ghost" id="btn-export" hidden>Eksport CSV</button>
+      </div>
+      <p class="form-error" id="form-error" role="alert" hidden></p>
+    </form>
+
+    <section class="results" id="results" hidden>
+      <div class="results-head">
+        <h2>Wyniki dziennego rozkładu</h2>
+        <p id="results-summary"></p>
+      </div>
+      <div class="table-scroll">
+        <table class="results-table" id="results-table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Stan licznika 1</th>
+              <th>Stan licznika 2</th>
+              <th>Zużycie w danym dniu</th>
+              <th>Stan licznika 3</th>
+            </tr>
+          </thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+      <p class="hint">Kliknij wiersz, aby go podświetlić. Zużycie = stan następnego dnia − stan tego dnia (suma trzech liczników).</p>
+    </section>
+
+    <section class="method">
+      <h2>Jak liczony jest rozkład</h2>
+      <p>
+        Wagi dni bazują na badaniach zużycia w gospodarstwach domowych (weekend zwykle wyżej,
+        święta zmienne, lato lekko wyżej), ale każda wartość dostaje losowy współczynnik —
+        sobota w jednym tygodniu może być mocniejsza, w innym tylko lekko powyżej średniej.
+        Dzienny udział trzech liczników jest zbliżony do ich udziału w całym okresie, lecz nie idealnie równy.
+        Limit dzienny dotyczy głównie licznika&nbsp;2.
+      </p>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <p>Aplikacja działa w przeglądarce — historia zapisywana lokalnie. Gotowa pod GitHub Pages.</p>
+  </footer>
+
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
