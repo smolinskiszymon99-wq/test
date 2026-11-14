@@ -267,8 +267,9 @@
       }
     }
 
+    // Wider day-to-day jitter so the series is visibly uneven (still renormalized)
     const noisy = result.map((v) => {
-      const factor = 0.92 + rng() * 0.16;
+      const factor = 0.72 + rng() * 0.56; // ~0.72–1.28
       let nv = v * factor;
       if (maxPerDay != null && maxPerDay > 0) nv = Math.min(nv, maxPerDay);
       return Math.max(0, nv);
@@ -277,11 +278,26 @@
     return normalizeExact(noisy, total, maxPerDay);
   }
 
-  function splitDayAcrossMeters(dayTotal, shares, rng) {
-    if (dayTotal <= 0) return [0, 0, 0];
-    const jittered = shares.map((s) => Math.max(0.02, s * (0.82 + rng() * 0.36)));
-    const sum = jittered.reduce((a, b) => a + b, 0) || 1;
-    return jittered.map((s) => (dayTotal * s) / sum);
+  /**
+   * Build meter 1/3 daily series loosely tracking meter 2's shape
+   * (roughly proportional to totals, with intentional mismatch).
+   */
+  function followMeter2Shape(dailyM2, meterTotal, m2Total, weights, rng) {
+    const n = dailyM2.length;
+    if (n === 0) return [];
+    if (meterTotal <= 0) return new Array(n).fill(0);
+
+    if (m2Total <= 1e-12) {
+      return allocateWithCap(meterTotal, weights, null, rng);
+    }
+
+    const ratio = meterTotal / m2Total;
+    const draft = dailyM2.map((v) => {
+      // Not perfectly proportional: ±~30% around the share of meter 2 that day
+      const jitter = 0.7 + rng() * 0.6;
+      return Math.max(0, v * ratio * jitter);
+    });
+    return normalizeExact(draft, meterTotal, null);
   }
 
   function roundSeriesExact(values, target, maxPerDay = null) {
@@ -361,36 +377,8 @@
       weights.push(dayBaseWeight(dates[i], rng));
     }
 
-    const dailyM1 = allocateWithCap(totals[0], weights, null, rng);
-    const dailyM2 = allocateWithCap(totals[1], weights, maxM2, rng);
-    const dailyM3 = allocateWithCap(totals[2], weights, null, rng);
-
-    const grand = totals[0] + totals[1] + totals[2];
-    const shares =
-      grand > 0 ? totals.map((t) => t / grand) : [1 / 3, 1 / 3, 1 / 3];
-
-    const blended = [[], [], []];
-    for (let i = 0; i < intervals; i++) {
-      const daySum = dailyM1[i] + dailyM2[i] + dailyM3[i];
-      let parts = splitDayAcrossMeters(daySum, shares, rng);
-
-      if (maxM2 != null && maxM2 > 0 && parts[1] > maxM2) {
-        const excess = parts[1] - maxM2;
-        parts[1] = maxM2;
-        const other = parts[0] + parts[2] || 1;
-        parts[0] += excess * (parts[0] / other);
-        parts[2] += excess * (parts[2] / other);
-      }
-
-      blended[0].push(parts[0]);
-      blended[1].push(parts[1]);
-      blended[2].push(parts[2]);
-    }
-
-    const finalM1 = normalizeExact(blended[0], totals[0], null);
-    const finalM2 = normalizeExact(blended[1], totals[1], maxM2);
-    const finalM3 = normalizeExact(blended[2], totals[2], null);
-
+    // Licznik 2 jest źródłem dziennego zużycia — wagami + limitem, bez późniejszego „wyrównywania”
+    const finalM2 = allocateWithCap(totals[1], weights, maxM2, rng);
     const m2Sum = finalM2.reduce((a, b) => a + b, 0);
     if (Math.abs(m2Sum - totals[1]) > 0.01) {
       throw new Error(
@@ -398,6 +386,10 @@
           "Zwiększ limit lub skróć okres."
       );
     }
+
+    // L1 i L3 idą w ślad za kształtem L2, ale nie idealnie proporcjonalnie
+    const finalM1 = followMeter2Shape(finalM2, totals[0], totals[1], weights, rng);
+    const finalM3 = followMeter2Shape(finalM2, totals[2], totals[1], weights, rng);
 
     const use1 = roundSeriesExact(finalM1, totals[0]);
     const use2 = roundSeriesExact(finalM2, totals[1], maxM2);
@@ -447,11 +439,12 @@
     rows[rows.length - 1].m3 = roundTo(m3End);
 
     for (let i = 0; i < rows.length - 1; i++) {
-      const d1 = roundTo(rows[i + 1].m1 - rows[i].m1);
+      // Zużycie w kolumnie = wyłącznie przyrost licznika 2
       const d2 = roundTo(rows[i + 1].m2 - rows[i].m2);
-      const d3 = roundTo(rows[i + 1].m3 - rows[i].m3);
-      rows[i].consumption = roundTo(d1 + d2 + d3);
+      rows[i].consumption = d2;
       rows[i].consumptionM2 = d2;
+      rows[i].deltaM1 = roundTo(rows[i + 1].m1 - rows[i].m1);
+      rows[i].deltaM3 = roundTo(rows[i + 1].m3 - rows[i].m3);
     }
 
     return { rows, seed, totals, intervals, weights };

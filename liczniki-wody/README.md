@@ -17,8 +17,8 @@ Po merge do `main` i deployu Pages:
   - święta polskie z szerokim zakresem (cicho albo rodzinne spotkanie),
   - lekki wzrost latem,
   - losowy współczynnik tygodniowy — ta sama sobota nie ma zawsze +X%
-- Zużycie dnia = suma przyrostów trzech liczników (`dzień następny − ten dzień`)
-- Podział dnia na liczniki **w miarę proporcjonalny**, ale nie idealnie
+- Kolumna zużycia = przyrost **licznika 2** (`dzień następny − ten dzień`)
+- Liczniki 1 i 3 idą w ślad za kształtem L2 **w miarę proporcjonalnie**, ale nie idealnie
 - Kliknięcie wiersza podświetla go
 - **Historia** ostatnich wyliczeń w `localStorage`
 - Ponowne losowanie i eksport CSV
