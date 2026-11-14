@@ -90,15 +90,18 @@
     let center;
     let spread;
 
-    if (isPolishHoliday(date)) {
+    if (isPolishHoliday(date) && dow !== 0 && dow !== 6) {
+      // Święta w tygodniu — szeroki zakres; sobota/niedziela mają własne reguły poniżej
       center = 0.92;
       spread = 0.42;
     } else if (dow === 6) {
-      center = 1.18;
+      // Sobota — bez podbijania; niedziela jest celowo niżej, żeby rzadziej ją przebijała
+      center = isPolishHoliday(date) ? 1.12 : 1.18;
       spread = 0.22;
     } else if (dow === 0) {
-      center = 1.08;
-      spread = 0.2;
+      // Niedziela zwykle poniżej soboty (niższy środek + węższy rozrzut w górę)
+      center = isPolishHoliday(date) ? 0.95 : 0.98;
+      spread = 0.14;
     } else if (dow === 5) {
       center = 1.04;
       spread = 0.14;
@@ -125,6 +128,36 @@
 
     w *= 0.88 + rng() * 0.24;
     return Math.max(0.12, w);
+  }
+
+  /**
+   * Dla par sobota→niedziela w tym samym weekendzie: jeśli niedziela wyszła wyżej,
+   * w większości przypadków ściągnij ją poniżej soboty — bez podbijania soboty.
+   * Odjęta woda wraca na dni robocze. Rzadkie inwersje (~12%) zostają dla realizmu.
+   */
+  function dampenSundayAboveSaturday(dates, daily, rng, keepInversionRate = 0.12) {
+    const out = daily.slice();
+    for (let i = 0; i < out.length - 1; i++) {
+      if (dates[i].getDay() !== 6) continue;
+      if (dates[i + 1].getDay() !== 0) continue;
+      if (out[i + 1] <= out[i]) continue;
+      if (rng() < keepInversionRate) continue;
+
+      const newSun = out[i] * (0.78 + rng() * 0.18);
+      const freed = out[i + 1] - newSun;
+      out[i + 1] = Math.max(0, newSun);
+
+      const weekdays = [];
+      for (let j = 0; j < out.length; j++) {
+        const dow = dates[j].getDay();
+        if (dow >= 1 && dow <= 5) weekdays.push(j);
+      }
+      if (weekdays.length && freed > 0) {
+        const add = freed / weekdays.length;
+        for (const j of weekdays) out[j] += add;
+      }
+    }
+    return out;
   }
 
   function roundTo(n, digits = DECIMALS) {
@@ -372,13 +405,18 @@
     }
 
     const rng = mulberry32(seed);
-    const weights = [];
+    let weights = [];
     for (let i = 0; i < intervals; i++) {
       weights.push(dayBaseWeight(dates[i], rng));
     }
+    weights = dampenSundayAboveSaturday(dates, weights, rng);
 
     // Licznik 2 jest źródłem dziennego zużycia — wagami + limitem, bez późniejszego „wyrównywania”
-    const finalM2 = allocateWithCap(totals[1], weights, maxM2, rng);
+    let finalM2 = allocateWithCap(totals[1], weights, maxM2, rng);
+    // Po szumie alokacji ponownie ogranicz częstotliwość niedziela > sobota
+    finalM2 = dampenSundayAboveSaturday(dates, finalM2, rng);
+    finalM2 = normalizeExact(finalM2, totals[1], maxM2);
+
     const m2Sum = finalM2.reduce((a, b) => a + b, 0);
     if (Math.abs(m2Sum - totals[1]) > 0.01) {
       throw new Error(

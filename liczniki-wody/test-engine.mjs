@@ -55,12 +55,21 @@ let satSum = 0;
 let satN = 0;
 let midSum = 0;
 let midN = 0;
-for (let s = 1; s <= 40; s++) {
+let weekendPairs = 0;
+let sunHigher = 0;
+for (let s = 1; s <= 80; s++) {
   const { rows: r } = eng.computeDistribution({ ...inputs, maxM2: null }, s);
-  for (const row of r.slice(0, -1)) {
+  for (let i = 0; i < r.length - 1; i++) {
+    const row = r[i];
+    if (row.isLast) continue;
     if (row.dow === "sobota") {
       satSum += row.consumption;
       satN += 1;
+      const next = r[i + 1];
+      if (next && next.dow === "niedziela" && !next.isLast) {
+        weekendPairs += 1;
+        if (next.consumption > row.consumption) sunHigher += 1;
+      }
     } else if (["wtorek", "środa", "czwartek"].includes(row.dow)) {
       midSum += row.consumption;
       midN += 1;
@@ -70,6 +79,11 @@ for (let s = 1; s <= 40; s++) {
 const satAvg = satSum / satN;
 const midAvg = midSum / midN;
 assert(satAvg > midAvg, `Saturday avg ${satAvg} should exceed midweek ${midAvg}`);
+const sunOverSatRate = sunHigher / weekendPairs;
+assert(
+  sunOverSatRate < 0.22,
+  `Sunday>Saturday too often: ${(sunOverSatRate * 100).toFixed(1)}% of ${weekendPairs} weekends`
+);
 
 // L1/L3 not perfectly proportional to L2 each day
 const { rows: r2 } = eng.computeDistribution({ ...inputs, maxM2: null }, 7);
@@ -92,7 +106,14 @@ try {
 assert(failed, "impossible max should throw");
 
 console.log("OK – all engine tests passed");
-console.log("L2 cv=", cv.toFixed(3), "sat/mid=", (satAvg / midAvg).toFixed(3));
+console.log(
+  "L2 cv=",
+  cv.toFixed(3),
+  "sat/mid=",
+  (satAvg / midAvg).toFixed(3),
+  "sun>sat=",
+  (sunOverSatRate * 100).toFixed(1) + "%"
+);
 console.log(
   "sample:",
   rows.slice(0, 8).map((r) => ({
