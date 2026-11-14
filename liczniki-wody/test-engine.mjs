@@ -105,6 +105,30 @@ try {
 }
 assert(failed, "impossible max should throw");
 
+// Max value should hit ≤10% of days when headroom exists
+let maxHitOk = 0;
+let maxHitTrials = 0;
+for (let s = 1; s <= 40; s++) {
+  const { rows: r } = eng.computeDistribution(
+    {
+      ...inputs,
+      m2Start: 100,
+      m2End: 112, // avg 0.4/day with max 0.55 → headroom
+      maxM2: 0.55,
+    },
+    s
+  );
+  const days = r.slice(0, -1);
+  const hits = days.filter((row) => row.consumption >= 0.55 - 1e-9).length;
+  const share = hits / days.length;
+  maxHitTrials += 1;
+  if (share <= 0.1 + 1e-9) maxHitOk += 1;
+}
+assert(
+  maxHitOk >= maxHitTrials * 0.85,
+  `max hit share ≤10% only in ${maxHitOk}/${maxHitTrials} trials`
+);
+
 console.log("OK – all engine tests passed");
 console.log(
   "L2 cv=",
@@ -112,7 +136,9 @@ console.log(
   "sat/mid=",
   (satAvg / midAvg).toFixed(3),
   "sun>sat=",
-  (sunOverSatRate * 100).toFixed(1) + "%"
+  (sunOverSatRate * 100).toFixed(1) + "%",
+  "max≤10%=",
+  `${maxHitOk}/${maxHitTrials}`
 );
 console.log(
   "sample:",
