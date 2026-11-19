@@ -8,8 +8,8 @@
     computeDistribution,
   } = window.WaterMetersEngine;
 
-  // v2: zużycie w kolumnie = wyłącznie Δ licznika 2 (stare wpisy v1 były sumą 3 liczników)
-  const HISTORY_KEY = "liczniki-wody-historia-v2";
+  // v3: stany i zużycie tylko w liczbach naturalnych
+  const HISTORY_KEY = "liczniki-wody-historia-v3";
   const HISTORY_LIMIT = 20;
 
   const form = document.getElementById("calc-form");
@@ -55,16 +55,20 @@
     const m3Start = parseNum(document.getElementById("m3-start"));
     const m3End = parseNum(document.getElementById("m3-end"));
 
-    if ([m1Start, m1End, m2Start, m2End, m3Start, m3End].some((v) => Number.isNaN(v))) {
+    const meterVals = [m1Start, m1End, m2Start, m2End, m3Start, m3End];
+    if (meterVals.some((v) => Number.isNaN(v))) {
       throw new Error("Uzupełnij wszystkie stany liczników liczbami.");
+    }
+    if (meterVals.some((v) => v < 0 || !Number.isInteger(v))) {
+      throw new Error("Stany liczników muszą być liczbami naturalnymi (0, 1, 2, …).");
     }
 
     const maxRaw = document.getElementById("max-m2").value;
     let maxM2 = null;
     if (maxRaw !== "") {
       maxM2 = Number(maxRaw);
-      if (!Number.isFinite(maxM2) || maxM2 <= 0) {
-        throw new Error("Maksymalne zużycie licznika 2 musi być liczbą dodatnią.");
+      if (!Number.isFinite(maxM2) || maxM2 <= 0 || !Number.isInteger(maxM2)) {
+        throw new Error("Maksymalne zużycie licznika 2 musi być dodatnią liczbą naturalną.");
       }
     }
 
@@ -102,13 +106,13 @@
       if (!next) {
         return { ...row, consumption: null, consumptionM2: null, isLast: true };
       }
-      const d2 = Number((next.m2 - row.m2).toFixed(3));
+      const d2 = Math.round(next.m2 - row.m2);
       return {
         ...row,
         consumption: d2,
         consumptionM2: d2,
-        deltaM1: Number((next.m1 - row.m1).toFixed(3)),
-        deltaM3: Number((next.m3 - row.m3).toFixed(3)),
+        deltaM1: Math.round(next.m1 - row.m1),
+        deltaM3: Math.round(next.m3 - row.m3),
         isLast: false,
       };
     });
@@ -339,9 +343,10 @@
     renderHistory();
   });
 
-  // Usuń starą historię v1 (tam zużycie bywało sumą 3 liczników)
+  // Usuń starsze historie (inne formaty zużycia / ułamki)
   try {
     localStorage.removeItem("liczniki-wody-historia-v1");
+    localStorage.removeItem("liczniki-wody-historia-v2");
   } catch {
     /* ignore */
   }
