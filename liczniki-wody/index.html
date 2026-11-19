@@ -33,7 +33,7 @@
       <h1>Wpisz stany trzech liczników</h1>
       <p>
         Program rozłoży łączne zużycie na kolejne dni z uwzględnieniem weekendów, świąt
-        i naturalnych wahań — bez sztywnych procentów.
+        i naturalnych wahań — bez sztywnych procentów. Stany i zużycie tylko w liczbach naturalnych.
       </p>
     </section>
 
@@ -59,7 +59,7 @@
         </label>
         <label>
           <span>Maks. zużycie licznika 2 / dzień (opcjonalnie)</span>
-          <input type="number" id="max-m2" min="0" step="0.001" placeholder="np. 0.8" />
+          <input type="number" id="max-m2" min="1" step="1" inputmode="numeric" placeholder="np. 5" />
         </label>
       </fieldset>
 
@@ -74,15 +74,15 @@
           </div>
           <div class="meter-col">
             <span class="col-label">Stan początkowy</span>
-            <input type="number" id="m1-start" min="0" step="0.001" required placeholder="Licznik 1" aria-label="Licznik 1 początek" />
-            <input type="number" id="m2-start" min="0" step="0.001" required placeholder="Licznik 2" aria-label="Licznik 2 początek" />
-            <input type="number" id="m3-start" min="0" step="0.001" required placeholder="Licznik 3" aria-label="Licznik 3 początek" />
+            <input type="number" id="m1-start" min="0" step="1" inputmode="numeric" required placeholder="Licznik 1" aria-label="Licznik 1 początek" />
+            <input type="number" id="m2-start" min="0" step="1" inputmode="numeric" required placeholder="Licznik 2" aria-label="Licznik 2 początek" />
+            <input type="number" id="m3-start" min="0" step="1" inputmode="numeric" required placeholder="Licznik 3" aria-label="Licznik 3 początek" />
           </div>
           <div class="meter-col">
             <span class="col-label">Stan końcowy</span>
-            <input type="number" id="m1-end" min="0" step="0.001" required placeholder="Licznik 1" aria-label="Licznik 1 koniec" />
-            <input type="number" id="m2-end" min="0" step="0.001" required placeholder="Licznik 2" aria-label="Licznik 2 koniec" />
-            <input type="number" id="m3-end" min="0" step="0.001" required placeholder="Licznik 3" aria-label="Licznik 3 koniec" />
+            <input type="number" id="m1-end" min="0" step="1" inputmode="numeric" required placeholder="Licznik 1" aria-label="Licznik 1 koniec" />
+            <input type="number" id="m2-end" min="0" step="1" inputmode="numeric" required placeholder="Licznik 2" aria-label="Licznik 2 koniec" />
+            <input type="number" id="m3-end" min="0" step="1" inputmode="numeric" required placeholder="Licznik 3" aria-label="Licznik 3 koniec" />
           </div>
         </div>
       </fieldset>

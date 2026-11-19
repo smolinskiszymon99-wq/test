@@ -10,8 +10,8 @@ Po merge do `main` i deployu Pages:
 
 ## Funkcje
 
-- Stany początkowe i końcowe trzech liczników + zakres dat
-- Opcjonalny **limit maksymalnego zużycia licznika 2** na dzień
+- Stany początkowe i końcowe trzech liczników + zakres dat (tylko **liczby naturalne**)
+- Opcjonalny **limit maksymalnego zużycia licznika 2** na dzień (też liczba naturalna)
 - Realistyczny, **niesztywny** rozkład:
   - weekendy zwykle wyżej (szczególnie soboty),
   - święta polskie z szerokim zakresem (cicho albo rodzinne spotkanie),

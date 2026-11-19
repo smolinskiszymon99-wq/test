@@ -6,7 +6,8 @@
 (function (root) {
   "use strict";
 
-  const DECIMALS = 3;
+  /** Stany liczników i zużycie — tylko liczby naturalne (0, 1, 2, …). */
+  const DECIMALS = 0;
   const DAY_NAMES = [
     "niedziela",
     "poniedziałek",
@@ -488,7 +489,7 @@
     return out;
   }
 
-  /** Korekta po zaokrągleniu: max na ≤10% dni, suma exact, krok 0.001. */
+  /** Korekta po zaokrągleniu: max na ≤10% dni, suma exact, krok 1. */
   function enforceMaxHitShareRounded(values, maxPerDay, weights, rng, maxShare, target) {
     if (maxPerDay == null || !(maxPerDay > 0)) return values.slice();
     const n = values.length;
